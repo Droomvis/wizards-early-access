@@ -1,0 +1,1347 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wizards — Wizard Council</title>
+<link rel="stylesheet" href="shared/login-overlay.css">
+<link rel="stylesheet" href="shared/hat-avatar.css">
+<style>
+  :root{
+    --bg: #15121c;
+    --bg-vignette: radial-gradient(ellipse at 50% -10%, #241d33 0%, #15121c 55%);
+    --panel: #1e1a29;
+    --panel-2: #241f33;
+    --border: #362c49;
+    --border-soft: #2a2338;
+    --ink-light: #d9d2e8;
+    --ink-muted: #9788b3;
+    --ink-dim: #6f6288;
+    --gold: #c9a24b;
+    --gold-soft: #e2c583;
+
+    --font-display: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', serif;
+    --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: 'SF Mono', Consolas, Monaco, monospace;
+  }
+
+  *{ box-sizing: border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background: var(--bg-vignette);
+    color: var(--ink-light);
+    font-family: var(--font-ui);
+    min-height:100vh;
+    display:flex; flex-direction:column;
+  }
+
+  .btn{
+    font-family: var(--font-ui);
+    font-size:13px;
+    background: var(--panel-2);
+    color: var(--ink-light);
+    border:1px solid var(--border);
+    padding:8px 14px;
+    border-radius:5px;
+    cursor:pointer;
+    transition: border-color .15s, background .15s;
+    white-space:nowrap;
+  }
+  .btn:hover{ border-color: var(--gold); background:#2a2338; }
+  .btn.primary{ background: linear-gradient(180deg,#2f2743,#251f38); border-color: var(--gold); color: var(--gold-soft); }
+  .btn.primary:hover{ background:#352c4b; }
+  .btn.danger:hover{ border-color:#a1364a; color:#e79aaa; }
+  .btn.btn-subtle{ font-size:11.5px; padding:6px 10px; color: var(--ink-dim); opacity:0.75; }
+  .btn.btn-subtle:hover{ opacity:1; }
+  .btn:disabled{ opacity:0.4; cursor:not-allowed; }
+  .btn:disabled:hover{ border-color: var(--border); background: var(--panel-2); }
+  .btn.toggled{ border-color:#a1364a; color:#e79aaa; background:#2a1a20; }
+
+  /* ---------- Drive sync bar ---------- */
+  #drive-bar{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:9px 24px; border-bottom:1px solid var(--border); background:#191423; }
+
+  /* ---------- Council: sidebar + main ---------- */
+  #view-council{ flex:1; display:flex; flex-direction:row; min-height:0; }
+
+  #cc-sidebar{
+    width:230px; flex:0 0 230px; display:flex; flex-direction:column; gap:14px;
+    padding:20px 16px; border-right:1px solid var(--border); background:#191423; overflow-y:auto;
+  }
+  #cc-sidebar-header h2{ font-family: var(--font-display); color: var(--gold-soft); font-size:16px; margin:0 0 4px; }
+  #cc-lobby-status{ font-size:11.5px; color: var(--ink-dim); margin:0; }
+  #cc-lobby-status.ok{ color:#8fbf8a; }
+  #cc-lobby-status.err{ color:#e79aaa; }
+  #cc-lobby-status.busy{ color: var(--gold-soft); }
+
+  /* ---------- Occulte bibliotheek (link naar gedeelde Drive-map) ---------- */
+  #cc-library{
+    display:flex; align-items:center; gap:12px;
+    padding:10px 12px; margin-bottom:2px;
+    background: linear-gradient(160deg, #241d33, #1a1524);
+    border:1px solid var(--border-soft); border-radius:8px;
+    text-decoration:none; color:inherit; cursor:pointer;
+    transition: border-color .15s, background .15s;
+  }
+  #cc-library:hover{ border-color: var(--gold); background:#2a2338; }
+  #cc-library-icon{ flex:0 0 auto; width:38px; height:38px; }
+  #cc-library-icon svg{ width:100%; height:100%; display:block; }
+  #cc-library-text{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+  #cc-library-title{ font-family: var(--font-display); font-size:13px; color: var(--gold-soft); }
+  #cc-library-sub{ font-size:10.5px; color: var(--ink-dim); line-height:1.3; }
+
+  #cc-room-list{ display:flex; flex-direction:column; gap:10px; }
+  .cc-room-card{
+    padding:10px 12px; background: var(--panel-2); border:1px solid var(--border-soft); border-radius:8px;
+    cursor:pointer; transition: border-color .15s, background .15s;
+  }
+  .cc-room-card:hover{ border-color: var(--gold); }
+  .cc-room-card.active{ border-color: var(--gold); background:#2a2338; }
+  .cc-room-card-top{ display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:4px; }
+  .cc-room-name{ font-size:13px; color: var(--ink-light); font-weight:600; }
+  .cc-room-count{ font-size:11px; color: var(--gold-soft); background:#241d33; border-radius:10px; padding:1px 7px; flex:0 0 auto; }
+  .cc-room-occupants{ font-size:11.5px; color: var(--ink-muted); line-height:1.4; word-break:break-word; }
+  .cc-room-occupants.cc-room-empty{ color: var(--ink-dim); font-style:italic; }
+  .cc-room-you{ margin-top:6px; font-size:10.5px; color: var(--gold-soft); }
+
+  #cc-advanced{ margin-top:auto; padding-top:12px; border-top:1px solid var(--border-soft); }
+  #cc-advanced-panel{ display:flex; flex-direction:column; gap:6px; margin-top:8px; }
+  #cc-advanced-panel label{ font-size:11px; text-transform:uppercase; letter-spacing:0.6px; color: var(--ink-dim); }
+  #cc-advanced-panel input{
+    background: var(--bg); border:1px solid var(--border); color: var(--ink-light);
+    padding:7px 9px; border-radius:5px; font-size:12px; font-family: var(--font-mono);
+  }
+
+  #cc-main{ flex:1; min-width:0; display:flex; flex-direction:column; padding:24px; overflow-y:auto; }
+  #cc-placeholder{ display:flex; flex-direction:column; gap:20px; max-width:520px; }
+
+  /* ---------- Raaf-aankondiging ---------- */
+  #cc-raven-widget{ position:relative; }
+  #cc-raven-btn{
+    position:relative; width:52px; height:52px; border-radius:50%;
+    background: linear-gradient(160deg, #241d33, #1a1524); border:1px solid var(--border-soft);
+    display:flex; align-items:center; justify-content:center; font-size:24px; cursor:pointer;
+    transition: border-color .15s, background .15s;
+  }
+  #cc-raven-btn:hover{ border-color: var(--gold); background:#2a2338; }
+  #cc-raven-badge{
+    position:absolute; top:-3px; right:-3px; width:18px; height:18px; border-radius:50%;
+    background:#a1364a; border:1.5px solid #15121c; color:#fff; font-size:10px; font-weight:bold;
+    align-items:center; justify-content:center; font-family: var(--font-mono);
+  }
+  #cc-raven-panel{
+    flex-direction:column; gap:10px; margin-top:12px; padding:14px;
+    background: var(--panel-2); border:1px solid var(--border-soft); border-radius:8px; max-width:420px;
+  }
+  #cc-raven-panel label{ font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color: var(--ink-dim); }
+  #cc-raven-panel textarea{
+    background: var(--bg); border:1px solid var(--border); color: var(--ink-light);
+    padding:8px 10px; border-radius:5px; font-size:13px; font-family: var(--font-ui); resize:vertical;
+  }
+  .cc-raven-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .cc-raven-toggle{ display:flex; align-items:center; gap:6px; font-size:12px; text-transform:none; letter-spacing:normal; color: var(--ink-muted); cursor:pointer; }
+  .cc-raven-toggle input{ width:14px; height:14px; accent-color:#a1364a; }
+  .cc-raven-meta{ font-size:10.5px; color: var(--ink-dim); margin:0; font-style:italic; }
+
+  /* ---------- Rudimentair forum ---------- */
+  #cc-forum{ display:flex; flex-direction:column; gap:10px; }
+  #cc-forum-header{ display:flex; align-items:center; justify-content:space-between; }
+  #cc-forum-header h3{ font-family: var(--font-display); color: var(--gold-soft); font-size:15px; margin:0; }
+  .cc-forum-header-actions{ display:flex; gap:6px; }
+  #cc-forum-body{ display:flex; flex-direction:column; }
+  .cc-forum-empty{ color: var(--ink-dim); font-size:12.5px; font-style:italic; margin:4px 0; }
+  #cc-forum-sublist{ display:flex; flex-direction:column; gap:8px; }
+  .cc-forum-sub-row{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:10px 12px; background: var(--panel-2); border:1px solid var(--border-soft); border-radius:7px;
+  }
+  .cc-forum-sub-main{ flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; cursor:pointer; }
+  .cc-forum-sub-name{ font-size:13px; color: var(--ink-light); font-weight:600; }
+  .cc-forum-sub-meta{ font-size:10.5px; color: var(--ink-dim); }
+  #cc-forum-thread{ display:flex; flex-direction:column; gap:10px; }
+  .cc-forum-thread-head{ display:flex; align-items:center; gap:10px; }
+  .cc-forum-thread-title{ font-family: var(--font-display); color: var(--gold-soft); font-size:14px; }
+  .cc-forum-posts{ display:flex; flex-direction:column; gap:8px; max-height:340px; overflow-y:auto; }
+  .cc-forum-post{ padding:9px 11px; background: var(--panel-2); border:1px solid var(--border-soft); border-radius:7px; }
+  .cc-forum-post-head{ display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+  .cc-forum-post-author{ font-size:11.5px; color: var(--gold-soft); font-weight:600; }
+  .cc-forum-post-time{ font-size:10px; color: var(--ink-dim); flex:1; }
+  .cc-forum-post-text{ font-size:12.5px; color: var(--ink-light); line-height:1.5; white-space:pre-wrap; word-break:break-word; }
+  .cc-forum-post-row{ display:flex; flex-direction:column; gap:6px; }
+  .cc-forum-post-row textarea{
+    background: var(--bg); border:1px solid var(--border); color: var(--ink-light);
+    padding:8px 10px; border-radius:5px; font-size:12.5px; font-family: var(--font-ui); resize:vertical;
+  }
+
+  #cr-toolbar{
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    padding-bottom:16px; margin-bottom:16px; border-bottom:1px solid var(--border-soft);
+  }
+  #cr-toolbar .spacer{ flex:1; }
+  #cr-room-label{ font-family: var(--font-display); color: var(--gold-soft); font-size:15px; }
+  #cr-count{ font-size:12px; color: var(--ink-dim); }
+
+  #cr-peers{
+    display:flex; flex-wrap:wrap; gap:14px; align-content:flex-start;
+  }
+  .cr-peer-card{
+    width:150px; padding:14px 10px; display:flex; flex-direction:column; align-items:center; gap:8px;
+    background: var(--panel-2); border:1px solid var(--border-soft); border-radius:10px;
+    text-align:center;
+  }
+  .cr-peer-avatar{
+    width:52px; height:52px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    background: linear-gradient(160deg, #3d2c10, #221808); border:2px solid var(--gold);
+    font-family: var(--font-display); font-size:20px; color: var(--gold-soft);
+    position:relative;
+  }
+  .cr-peer-avatar.speaking{ box-shadow: 0 0 0 3px rgba(143,191,138,0.5); border-color:#8fbf8a; }
+  .cr-peer-avatar .cr-mute-badge{
+    position:absolute; bottom:-3px; right:-3px; width:18px; height:18px; border-radius:50%;
+    background:#2a1a20; border:1px solid #a1364a; display:flex; align-items:center; justify-content:center;
+    font-size:9px; color:#e79aaa;
+  }
+  .cr-hat-canvas{ width:100%; height:100%; border-radius:50%; display:block; }
+  .cr-peer-name{ font-size:12px; color: var(--ink-light); word-break:break-word; }
+  .cr-peer-status{ font-size:10px; color: var(--ink-dim); }
+  .cr-peer-status.ok{ color:#8fbf8a; }
+  .cr-peer-status.err{ color:#e79aaa; }
+  .cr-self-card{ border-color: var(--gold); }
+  .cr-self-card .cr-peer-avatar{ border-color: var(--gold-soft); }
+
+  #cr-empty-hint{ color: var(--ink-dim); font-size:13px; font-style:italic; padding:12px 2px; }
+
+  /* ---------- Chat binnen de zaal ---------- */
+  #cr-chat-panel{
+    margin-top:18px; padding-top:14px; border-top:1px solid var(--border-soft);
+    display:flex; flex-direction:column; gap:8px; max-width:520px;
+  }
+  #cr-chat-body{
+    max-height:220px; overflow-y:auto; font-size:12px; line-height:1.5; color: var(--ink-muted);
+    background: rgba(0,0,0,0.15); border:1px solid var(--border-soft); border-radius:6px; padding:8px 10px;
+  }
+  #cr-chat-body .cr-chat-empty{ color: var(--ink-dim); font-style:italic; }
+  #cr-chat-body .cr-chat-entry{ margin:0 0 4px; word-break:break-word; }
+  #cr-chat-body .cr-chat-time{ color: var(--ink-dim); margin-right:5px; font-size:10.5px; }
+  #cr-chat-body .cr-chat-sender{ color: var(--gold-soft); font-weight:600; }
+  .cr-chat-inputrow{ display:flex; gap:6px; }
+  .cr-chat-inputrow input{
+    flex:1; min-width:0; font-size:12.5px; padding:7px 9px; border-radius:5px;
+    background: var(--bg); border:1px solid var(--border); color: var(--ink-light);
+  }
+
+  @media (max-width: 720px){
+    #view-council{ flex-direction:column; }
+    #cc-sidebar{ width:auto; flex:0 0 auto; border-right:none; border-bottom:1px solid var(--border); max-height:none; }
+    #cc-main{ padding:16px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="login-overlay">
+  <div class="login-card">
+    <div class="login-sigil">⟡</div>
+    <h2>Wizards — Wizard Council</h2>
+    <p class="login-sub">Log in om verder te gaan.</p>
+
+    <div id="login-form-fields">
+      <label for="login-username">Naam</label>
+      <input type="text" id="login-username" placeholder="Je naam (vrij te kiezen)" autocomplete="off">
+      <label for="login-password">Wachtwoord</label>
+      <input type="password" id="login-password" placeholder="Wachtwoord voor de Drive-sync" autocomplete="off">
+      <button class="btn primary" id="btn-login">Inloggen</button>
+    </div>
+
+    <div id="login-status"></div>
+
+    <div id="login-lastedit" style="display:none;">
+      <p id="login-lastedit-text"></p>
+      <button class="btn primary" id="btn-login-continue">Verdergaan</button>
+    </div>
+  </div>
+</div>
+
+<div id="drive-bar">
+  <span id="drive-user-label"></span>
+  <span id="drive-status"></span>
+</div>
+
+<div id="view-council">
+  <aside id="cc-sidebar">
+    <div id="cc-sidebar-header">
+      <h2>🎙️ Wizard Council</h2>
+      <p id="cc-lobby-status" class="cc-status">Verbinden met de server…</p>
+    </div>
+
+    <a id="cc-library" href="https://drive.google.com/drive/folders/14FnbhHbL9L1AjpOSwn9rqIxyLI7ESlGQ?usp=sharing" target="_blank" rel="noopener noreferrer" title="Open de bibliotheek — gedeelde Drive-map">
+      <div id="cc-library-icon">
+        <svg viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg">
+          <!-- gestapelde grimoires -->
+          <rect x="7" y="30" width="30" height="6" rx="1" fill="#3d2c10" stroke="#c9a24b" stroke-width="1"/>
+          <rect x="9" y="24" width="26" height="6" rx="1" fill="#2a2338" stroke="#8f7fae" stroke-width="1"/>
+          <rect x="8" y="18" width="28" height="6" rx="1" fill="#442038" stroke="#c9a24b" stroke-width="1"/>
+          <line x1="12" y1="33" x2="32" y2="33" stroke="#c9a24b" stroke-width="0.6" opacity="0.6"/>
+          <line x1="13" y1="27" x2="31" y2="27" stroke="#e2c583" stroke-width="0.6" opacity="0.6"/>
+          <line x1="12" y1="21" x2="32" y2="21" stroke="#c9a24b" stroke-width="0.6" opacity="0.6"/>
+          <!-- occult oog-sigil op bovenste boek -->
+          <g transform="translate(22,13)">
+            <circle r="7.5" fill="#191423" stroke="#c9a24b" stroke-width="1"/>
+            <path d="M -4.5 0 Q 0 -3.6 4.5 0 Q 0 3.6 -4.5 0 Z" fill="none" stroke="#e2c583" stroke-width="0.9"/>
+            <circle r="1.6" fill="#e2c583"/>
+          </g>
+        </svg>
+      </div>
+      <div id="cc-library-text">
+        <span id="cc-library-title">Bibliotheek</span>
+        <span id="cc-library-sub">gedeelde grimoires — opent in Drive</span>
+      </div>
+    </a>
+
+    <div id="cc-room-list"><!-- 5 hardcoded zalen, ingevuld door JS --></div>
+
+    <div id="cc-advanced">
+      <button type="button" class="btn btn-subtle" id="cc-btn-advanced-toggle">Server-adres wijzigen</button>
+      <div id="cc-advanced-panel" style="display:none;">
+        <label for="cc-server-url">Server-adres (ws:// of wss://)</label>
+        <input type="text" id="cc-server-url" placeholder="wss://wizards-arena.onrender.com">
+        <button type="button" class="btn btn-subtle" id="cc-btn-server-apply">Toepassen &amp; herverbinden</button>
+      </div>
+    </div>
+  </aside>
+
+  <div id="cc-main">
+    <div id="cc-placeholder">
+      <div id="cc-raven-widget">
+        <button type="button" id="cc-raven-btn" title="Aankondigingen">
+          <span id="cc-raven-icon">🐦‍⬛</span>
+          <span id="cc-raven-badge">1</span>
+        </button>
+        <div id="cc-raven-panel">
+          <label for="cc-raven-text">Aankondiging (voor iedereen zichtbaar en aanpasbaar)</label>
+          <textarea id="cc-raven-text" rows="4" placeholder="Bv. Nieuwe versie op de gedeelde Drive gezet — even bijwerken!"></textarea>
+          <div class="cc-raven-row">
+            <label class="cc-raven-toggle"><input type="checkbox" id="cc-raven-active"> Rode bolletje laten oplichten</label>
+            <button type="button" class="btn btn-subtle" id="cc-raven-save">Opslaan</button>
+          </div>
+          <p id="cc-raven-meta" class="cc-raven-meta"></p>
+        </div>
+      </div>
+
+      <div id="cc-forum">
+        <div id="cc-forum-header">
+          <h3>📜 Forum</h3>
+          <div class="cc-forum-header-actions">
+            <button type="button" class="btn btn-subtle" id="cc-forum-refresh" title="Vernieuwen — haalt de laatste stand op">🔄</button>
+            <button type="button" class="btn btn-subtle" id="cc-forum-new-sub">+ Subforum</button>
+          </div>
+        </div>
+        <div id="cc-forum-body">
+          <div id="cc-forum-sublist"></div>
+          <div id="cc-forum-thread"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="council-room" style="display:none;">
+      <div id="cr-toolbar">
+        <span id="cr-room-label"></span>
+        <span id="cr-count"></span>
+        <div class="spacer"></div>
+        <button type="button" class="btn" id="cr-btn-mute" title="Zet je eigen microfoon aan/uit">🎤 Dempen</button>
+        <button type="button" class="btn" id="cr-btn-deafen" title="Zet inkomend geluid van iedereen aan/uit">🔇 Iedereen dempen</button>
+        <button type="button" class="btn danger" id="cr-btn-leave">Verlaat de zaal</button>
+      </div>
+      <div id="cr-peers"></div>
+      <div id="cr-empty-hint" style="display:none;">Nog niemand anders hier — wachten tot er iemand joint.</div>
+
+      <div id="cr-chat-panel">
+        <div id="cr-chat-body"></div>
+        <div class="cr-chat-inputrow">
+          <input type="text" id="cr-chat-input" placeholder="Bericht in deze zaal…" autocomplete="off">
+          <button type="button" class="btn btn-subtle" id="cr-chat-send">Stuur</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="shared/hat-avatar.js"></script>
+<script src="shared/drive-auth.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  // ==========================================================================
+  // Wizards — Wizard Council (voice-chat module met 5 vaste zalen)
+  //
+  // Herkomst: dit bestand verving een oudere council.html met een digitaal
+  // prikbord, ledenlijst en regelgeving-naslagwerk — geen van die
+  // functionaliteiten werd in de praktijk gebruikt. De oude versie staat
+  // bewaard in Legacy ("council (voor voice-chat herwerking) <datum>.html")
+  // voor het geval er later nog iets uit gerecupereerd moet worden.
+  //
+  // 2026-08-16 herwerking: vrij invulbare roomcodes vervangen door 5
+  // hardcoded zalen (ROOMS hieronder), zodat spelers niet meer vooraf een
+  // roomcode moeten afspreken. Om te kunnen tonen wie er al in welke zaal
+  // zit vóór je zelf joint, blijft de WebSocket-verbinding nu als "lobby"
+  // open zodra je bent ingelogd — pas bij het effectief kiezen van een zaal
+  // wordt de microfoon gevraagd en een RTCPeerConnection-mesh opgezet.
+  // Zie server.js voor de bijhorende protocol-uitbreiding (name op join,
+  // "leave" om een zaal te verlaten zonder de socket te sluiten, en
+  // "rooms-info" voor de bezetting van alle zalen).
+  //
+  // Werking (mesh-WebRTC via de bestaande relay-server, zie server.js):
+  //   1) Bij inloggen verbindt de client met de relay-server (lobby), zonder
+  //      een zaal te joinen — dit voedt enkel de sidebar met bezetting.
+  //   2) Bij het kiezen van een zaal stuurt de client "join" (met room +
+  //      eigen naam). De server geeft een uniek peer-id + de lijst van reeds
+  //      aanwezige peers (met naam) terug. Voor elk van die peers zet DEZE
+  //      client (de nieuw binnenkomende) een RTCPeerConnection + offer op —
+  //      zo initieert altijd maar één kant per paar, geen dubbele offers.
+  //   3) Nieuw binnenkomende peers worden aan bestaande clients gemeld via
+  //      "peer-joined" (naam + puur informatief voor de RTC-kant); die maken
+  //      pas een RTCPeerConnection aan zodra de bijhorende offer binnenkomt.
+  //   4) SDP/ICE worden gericht (via een "to"-veld) door de server
+  //      doorgestuurd — de server begrijpt de inhoud niet, enkel de routing.
+  //   5) "peer-left" ruimt de bijhorende RTCPeerConnection en het
+  //      audio-element op. Zelf een zaal verlaten stuurt "leave" — de socket
+  //      blijft open zodat de lobby-sidebar bezetting van andere zalen blijft
+  //      tonen.
+  //
+  // Bewuste keuze / aandachtspunt: dit is een volledige mesh (elke deelnemer
+  // heeft een rechtstreekse verbinding met elke andere deelnemer). Dat werkt
+  // prima voor een kleine groep (~2-6 spelers per zaal) maar schaalt niet
+  // naar veel meer — elke extra deelnemer betekent voor iedereen een extra
+  // uitgaande audiostroom. Voor deze speelgroep (getest met 5 man, 5 zalen
+  // voor spreiding/pseudoprivacy) is dat geen probleem; mocht een zaal sterk
+  // groeien, dan is een SFU (bv. LiveKit/mediasoup) een logische volgende
+  // stap, maar dat is voor nu bewust niet gebouwd.
+  //
+  // Tweede aandachtspunt: enkel STUN (Google's publieke server) wordt
+  // gebruikt, geen TURN. Voor de meeste thuis-/mobiele netwerken volstaat
+  // dat, maar bij sommige restrictieve netwerken (bv. bedrijfs-wifi met
+  // symmetrische NAT) lukt directe peer-to-peer verbinding soms niet. Zie
+  // je iemand permanent op "verbinden..." blijven staan, dan is een
+  // (gratis) TURN-server (bv. via metered.ca of Twilio) de volgende stap.
+  // ==========================================================================
+
+  const ICE_SERVERS = [{ urls: "stun:stun.l.google.com:19302" }];
+
+  const CC_SETTINGS_KEY = "wizards_council_voice_settings_v2";
+  const CC_DEFAULT_SERVER_URL = "wss://wizards-arena.onrender.com";
+
+  // 5 hardcoded zalen — vaste roomcodes, geen afspraak vooraf nodig. Vijf
+  // stuks voor spreiding van de peers en wat pseudoprivacy (bv. als 2
+  // spelers apart een match spelen).
+  const ROOMS = [
+    { code: "WIZARDS-COUNCIL-1", label: "Zaal 1" },
+    { code: "WIZARDS-COUNCIL-2", label: "Zaal 2" },
+    { code: "WIZARDS-COUNCIL-3", label: "Zaal 3" },
+    { code: "WIZARDS-COUNCIL-4", label: "Zaal 4" },
+    { code: "WIZARDS-COUNCIL-5", label: "Zaal 5" }
+  ];
+
+  function loadCcSettings(){
+    try {
+      const saved = JSON.parse(localStorage.getItem(CC_SETTINGS_KEY) || "{}");
+      return { serverUrl: saved.serverUrl || CC_DEFAULT_SERVER_URL };
+    } catch (e){ return { serverUrl: CC_DEFAULT_SERVER_URL }; }
+  }
+
+  function saveCcSettings(serverUrl){
+    try { localStorage.setItem(CC_SETTINGS_KEY, JSON.stringify({ serverUrl })); }
+    catch (e){ /* opslag onbeschikbaar — negeren */ }
+  }
+
+  function escapeHtml(str){
+    return String(str == null ? "" : str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+
+  // Kleine lokale id-generator (cfr. peerId-stijl in server.js) — enkel
+  // gebruikt voor forum-subfora/posts, die toch een unieke sleutel nodig
+  // hebben zodra ze in de gedeelde Drive-JSON belanden.
+  function uidLocal(){
+    return "id_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+  }
+
+  function nowTimeStrLocal(ts){
+    const d = ts ? new Date(ts) : new Date();
+    return d.getHours().toString().padStart(2, "0") + ":" + d.getMinutes().toString().padStart(2, "0");
+  }
+
+  // ---------- Sessie-state ----------
+  let ccSocket = null;
+  let lobbyConnected = false;
+  let ccIntentionalClose = false;
+  let ccReconnectTimer = null;
+  let ccServerUrl = CC_DEFAULT_SERVER_URL;
+  let myPeerId = null;
+  let myName = "Speler";
+  let currentRoom = null;      // roomcode waar we nu effectief in zitten, of null (enkel lobby)
+  let roomsInfo = {};          // roomcode -> [{peerId, name}, ...] — bezetting van ALLE zalen
+  let localStream = null;
+  let micMuted = false;
+  let deafened = false;
+
+  // Chatberichten van de zaal waar ik nu in zit — puur lokaal, in-memory,
+  // gevoed door de relay-server ("room-chat"/"room-chat-history"); wordt
+  // geleegd bij elke nieuwe join/leave (zie ccJoinRoom/ccLeaveRoom).
+  let roomChatMessages = [];
+
+  // ---------- Raaf-aankondiging + forum: Drive-gesynchroniseerde state ----------
+  // Zelfde principe als hat-avatar.js: de volledige Drive-dataset (opgehaald
+  // bij login) krijgt gewoon twee extra top-level velden ("ravenNotice" en
+  // "forum") die de bestaande Google Apps Script-backend niet kent maar wel
+  // gewoon bewaart en teruggeeft ("onbekende velden blijven bewaard"). Geen
+  // backend-wijziging nodig. driveData/drivePassword worden hier bijgehouden
+  // zodat de raaf/forum-functies zelf kunnen fetchen+wegschrijven, los van
+  // de voice-chat-logica hierboven.
+  let driveData = null;
+  let drivePassword = null;
+  let forumOpenSubId = null; // welk subforum momenteel open staat, of null (lijstweergave)
+
+  function defaultRavenNotice(){ return { text: "", active: false, updatedBy: "", updatedAt: null }; }
+  function defaultForum(){ return { subforums: [] }; }
+
+  function getRavenNotice(){
+    return (driveData && driveData.ravenNotice) ? driveData.ravenNotice : defaultRavenNotice();
+  }
+  function getForum(){
+    return (driveData && driveData.forum && Array.isArray(driveData.forum.subforums)) ? driveData.forum : defaultForum();
+  }
+
+  // Fetch-merge-write: haalt de meest recente volledige dataset op, overschrijft
+  // daarin enkel de meegegeven top-level velden, en schrijft het geheel terug.
+  // Zo blijft alles wat een ANDERE speler intussen elders wijzigde (collectie,
+  // hoeden, ...) behouden — bewuste keuze, cfr. HatAvatar.saveToDrive. Kanttekening:
+  // bij twee zowat-gelijktijdige wegschrijvingen wint gewoon wie het laatst
+  // schrijft (geen locking) — voor een klein groepje spelers is dat aanvaardbaar,
+  // net zoals bij de bestaande hoeden-sync.
+  //
+  // Gebruikt door de raaf-aankondiging (één simpel veld, laatste-schrijver-wint
+  // is daar onschuldig). Voor het forum NIET rechtstreeks gebruiken — zie
+  // saveDriveFieldsRetry hieronder, want daar kan "laatste-schrijver-wint" een
+  // volledig bericht van iemand anders laten verdwijnen.
+  async function saveDriveFields(fieldsObj){
+    if (!drivePassword) throw new Error("Niet ingelogd");
+    const fresh = await DriveAuth.fetchFullSync(drivePassword);
+    const merged = Object.assign({}, fresh, fieldsObj);
+    const res = await fetch(DriveAuth.driveUrl(drivePassword), {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(merged)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) throw new Error((data && data.error) || "Wegschrijven mislukt");
+    driveData = merged;
+    return merged;
+  }
+
+  // Zelfde fetch-merge-write-principe, maar dan met (a) een bouwfunctie i.p.v.
+  // een kant-en-klaar object, en (b) een controle-na-schrijven met automatische
+  // herhaling. Reden: het forum kreeg soms berichten die "niet opgeslagen"
+  // leken — meestal omdat twee spelers zowat gelijktijdig posten: speler B haalt
+  // de "verse" dataset op vóór speler A's bericht daar al in staat, en
+  // overschrijft die dan met een versie zónder A's bericht (klassiek
+  // lost-update-probleem). Soms ook omdat Apps Script bij een interne fout toch
+  // een 200-status teruggeeft, zodat de oude code dacht dat opslaan gelukt was.
+  //
+  // buildFields(freshData) moet de te mergen top-level velden teruggeven, elke
+  // poging opnieuw berekend op basis van de dan-actuele data (dus NIET op een
+  // eerder vastgehouden kopie) — anders zou een retry een verouderde
+  // wijziging opnieuw toepassen en zo iemand anders z'n intussen bijgekomen
+  // wijziging alsnog overschrijven.
+  // verify(freshDataNaSchrijven) => true als de wijziging er effectief in
+  // staat; bij false (of een fout) wordt het opnieuw geprobeerd.
+  async function saveDriveFieldsRetry(buildFields, verify, maxAttempts){
+    if (!drivePassword) throw new Error("Niet ingelogd");
+    maxAttempts = maxAttempts || 3;
+    let lastErr = null;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++){
+      try {
+        const fresh = await DriveAuth.fetchFullSync(drivePassword);
+        const merged = Object.assign({}, fresh, buildFields(fresh));
+        const res = await fetch(DriveAuth.driveUrl(drivePassword), {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify(merged)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.error) throw new Error((data && data.error) || "Wegschrijven mislukt");
+
+        const check = await DriveAuth.fetchFullSync(drivePassword);
+        if (!verify || verify(check)){
+          driveData = check;
+          return check;
+        }
+        lastErr = new Error("Wijziging niet teruggevonden na opslaan — waarschijnlijk overschreven door een gelijktijdige wijziging.");
+      } catch (e){
+        lastErr = e;
+      }
+    }
+    throw lastErr || new Error("Wegschrijven mislukt na meerdere pogingen");
+  }
+
+  async function refreshDriveData(){
+    if (!drivePassword) return;
+    const btn = document.getElementById("cc-forum-refresh");
+    if (btn) btn.disabled = true;
+    try {
+      driveData = await DriveAuth.fetchFullSync(drivePassword);
+      renderRavenWidget();
+      renderForumSublist();
+    } catch (e){
+      alert("Kon niet vernieuwen: " + (e && e.message ? e.message : e));
+    }
+    if (btn) btn.disabled = false;
+  }
+
+  // ---- Raaf-aankondiging: rendering + opslaan ----
+  let ravenPanelOpen = false;
+
+  function renderRavenWidget(){
+    const notice = getRavenNotice();
+    const badge = document.getElementById("cc-raven-badge");
+    if (badge) badge.style.display = notice.active ? "flex" : "none";
+    const textEl = document.getElementById("cc-raven-text");
+    const activeEl = document.getElementById("cc-raven-active");
+    const metaEl = document.getElementById("cc-raven-meta");
+    // Niet overschrijven terwijl iemand net aan het typen is in het veld.
+    if (textEl && document.activeElement !== textEl) textEl.value = notice.text || "";
+    if (activeEl) activeEl.checked = !!notice.active;
+    if (metaEl){
+      metaEl.textContent = notice.updatedBy
+        ? `Laatst aangepast door ${notice.updatedBy}` + (notice.updatedAt ? ` op ${new Date(notice.updatedAt).toLocaleString("nl-BE")}.` : ".")
+        : "Nog geen aankondiging geplaatst.";
+    }
+  }
+
+  async function saveRavenNotice(){
+    const btn = document.getElementById("cc-raven-save");
+    const text = document.getElementById("cc-raven-text").value;
+    const active = document.getElementById("cc-raven-active").checked;
+    const newNotice = { text, active, updatedBy: myName, updatedAt: Date.now() };
+    const orig = btn.textContent;
+    btn.disabled = true; btn.textContent = "Opslaan…";
+    try {
+      await saveDriveFields({ ravenNotice: newNotice });
+      ccSend({ type: "raven-sync", ravenNotice: newNotice });
+      renderRavenWidget();
+    } catch (e){
+      alert("Kon de aankondiging niet opslaan: " + (e && e.message ? e.message : e));
+    }
+    btn.disabled = false; btn.textContent = orig;
+  }
+
+  // ---- Forum: rendering ----
+  function renderForumSublist(){
+    const forum = getForum();
+    const listWrap = document.getElementById("cc-forum-sublist");
+    const threadWrap = document.getElementById("cc-forum-thread");
+    if (!listWrap || !threadWrap) return;
+
+    if (forumOpenSubId){
+      listWrap.style.display = "none";
+      threadWrap.style.display = "flex";
+      renderForumThread();
+      return;
+    }
+    listWrap.style.display = "flex";
+    listWrap.style.flexDirection = "column";
+    threadWrap.style.display = "none";
+    listWrap.innerHTML = "";
+
+    if (forum.subforums.length === 0){
+      listWrap.innerHTML = `<p class="cc-forum-empty">Nog geen subfora — maak er hierboven één aan.</p>`;
+      return;
+    }
+    forum.subforums.forEach(sf => {
+      const row = document.createElement("div");
+      row.className = "cc-forum-sub-row";
+      row.innerHTML = `
+        <div class="cc-forum-sub-main">
+          <span class="cc-forum-sub-name">${escapeHtml(sf.name)}</span>
+          <span class="cc-forum-sub-meta">${sf.posts.length} bericht${sf.posts.length === 1 ? "" : "en"} — door ${escapeHtml(sf.createdBy || "iemand")}</span>
+        </div>
+        <button type="button" class="btn btn-subtle cc-forum-sub-delete" title="Subforum verwijderen (en alle berichten erin)">🗑</button>
+      `;
+      row.querySelector(".cc-forum-sub-main").addEventListener("click", () => { forumOpenSubId = sf.id; renderForumSublist(); });
+      row.querySelector(".cc-forum-sub-delete").addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (!confirm(`Subforum "${sf.name}" en alle berichten erin verwijderen?`)) return;
+        deleteSubforum(sf.id);
+      });
+      listWrap.appendChild(row);
+    });
+  }
+
+  function renderForumThread(){
+    const forum = getForum();
+    const sf = forum.subforums.find(s => s.id === forumOpenSubId);
+    const wrap = document.getElementById("cc-forum-thread");
+    if (!wrap) return;
+    if (!sf){ forumOpenSubId = null; renderForumSublist(); return; }
+
+    wrap.innerHTML = `
+      <div class="cc-forum-thread-head">
+        <button type="button" class="btn btn-subtle" id="cc-forum-back">← Terug</button>
+        <span class="cc-forum-thread-title">${escapeHtml(sf.name)}</span>
+      </div>
+      <div class="cc-forum-posts"></div>
+      <div class="cc-forum-post-row">
+        <textarea id="cc-forum-post-text" rows="2" placeholder="Schrijf een bericht…"></textarea>
+        <button type="button" class="btn primary" id="cc-forum-post-send">Plaats</button>
+      </div>
+    `;
+    const postsWrap = wrap.querySelector(".cc-forum-posts");
+    if (sf.posts.length === 0){
+      postsWrap.innerHTML = `<p class="cc-forum-empty">Nog geen berichten in dit subforum.</p>`;
+    } else {
+      sf.posts.forEach(p => {
+        const el = document.createElement("div");
+        el.className = "cc-forum-post";
+        el.innerHTML = `
+          <div class="cc-forum-post-head">
+            <span class="cc-forum-post-author">${escapeHtml(p.author || "Speler")}</span>
+            <span class="cc-forum-post-time">${escapeHtml(new Date(p.createdAt).toLocaleString("nl-BE"))}</span>
+            <button type="button" class="btn btn-subtle cc-forum-post-delete" title="Verwijder bericht">✕</button>
+          </div>
+          <div class="cc-forum-post-text">${escapeHtml(p.text)}</div>
+        `;
+        el.querySelector(".cc-forum-post-delete").addEventListener("click", () => {
+          if (!confirm("Dit bericht verwijderen?")) return;
+          deleteForumPost(sf.id, p.id);
+        });
+        postsWrap.appendChild(el);
+      });
+    }
+    wrap.querySelector("#cc-forum-back").addEventListener("click", () => { forumOpenSubId = null; renderForumSublist(); });
+    wrap.querySelector("#cc-forum-post-send").addEventListener("click", () => {
+      const ta = wrap.querySelector("#cc-forum-post-text");
+      const val = ta.value;
+      if (!val || !val.trim()) return;
+      addForumPost(sf.id, val.trim());
+    });
+  }
+
+  // ---- Forum: schrijfacties ----
+  // Allemaal via saveDriveFieldsRetry: buildFields herberekent de wijziging
+  // telkens tegen de op dat moment meest actuele Drive-data (nooit tegen een
+  // eerder vastgehouden kopie), en verify() controleert na het schrijven of
+  // de wijziging er effectief in staat — zoniet wordt het automatisch
+  // opnieuw geprobeerd. Iedereen heeft nog steeds alle rechten (geen
+  // permissies), dat verandert niet.
+  function forumFrom(freshData){
+    return (freshData && freshData.forum && Array.isArray(freshData.forum.subforums)) ? freshData.forum : defaultForum();
+  }
+
+  async function createSubforum(name){
+    const sub = { id: uidLocal(), name, createdBy: myName, createdAt: Date.now(), posts: [] };
+    try {
+      const check = await saveDriveFieldsRetry(
+        (fresh) => ({ forum: { subforums: forumFrom(fresh).subforums.concat([sub]) } }),
+        (check) => forumFrom(check).subforums.some(s => s.id === sub.id)
+      );
+      ccSend({ type: "forum-sync", forum: check.forum });
+      forumOpenSubId = sub.id;
+      renderForumSublist();
+    } catch (e){
+      alert("Kon het subforum niet aanmaken: " + (e && e.message ? e.message : e));
+    }
+  }
+
+  async function deleteSubforum(id){
+    try {
+      const check = await saveDriveFieldsRetry(
+        (fresh) => ({ forum: { subforums: forumFrom(fresh).subforums.filter(s => s.id !== id) } }),
+        (check) => !forumFrom(check).subforums.some(s => s.id === id)
+      );
+      ccSend({ type: "forum-sync", forum: check.forum });
+      if (forumOpenSubId === id) forumOpenSubId = null;
+      renderForumSublist();
+    } catch (e){
+      alert("Kon het subforum niet verwijderen: " + (e && e.message ? e.message : e));
+    }
+  }
+
+  async function addForumPost(subId, text){
+    const post = { id: uidLocal(), author: myName, text, createdAt: Date.now() };
+    try {
+      const check = await saveDriveFieldsRetry(
+        (fresh) => ({ forum: { subforums: forumFrom(fresh).subforums.map(s => s.id === subId
+          ? Object.assign({}, s, { posts: s.posts.concat([post]) })
+          : s) } }),
+        (check) => {
+          const sf = forumFrom(check).subforums.find(s => s.id === subId);
+          return !!sf && sf.posts.some(p => p.id === post.id);
+        }
+      );
+      ccSend({ type: "forum-sync", forum: check.forum });
+      renderForumThread();
+    } catch (e){
+      alert("Kon het bericht niet plaatsen, ook niet na een paar pogingen: " + (e && e.message ? e.message : e) + "\n\nProbeer het zo dadelijk nog eens.");
+    }
+  }
+
+  async function deleteForumPost(subId, postId){
+    try {
+      const check = await saveDriveFieldsRetry(
+        (fresh) => ({ forum: { subforums: forumFrom(fresh).subforums.map(s => s.id === subId
+          ? Object.assign({}, s, { posts: s.posts.filter(p => p.id !== postId) })
+          : s) } }),
+        (check) => {
+          const sf = forumFrom(check).subforums.find(s => s.id === subId);
+          return !!sf && !sf.posts.some(p => p.id === postId);
+        }
+      );
+      ccSend({ type: "forum-sync", forum: check.forum });
+      renderForumThread();
+    } catch (e){
+      alert("Kon het bericht niet verwijderen: " + (e && e.message ? e.message : e));
+    }
+  }
+
+  // ---- Chat binnen de zaal: rendering + versturen ----
+  function renderRoomChat(){
+    const el = document.getElementById("cr-chat-body");
+    if (!el) return;
+    el.innerHTML = roomChatMessages.length
+      ? roomChatMessages.map(m => `<p class="cr-chat-entry"><span class="cr-chat-time">${escapeHtml(nowTimeStrLocal(m.time))}</span><span class="cr-chat-sender">${escapeHtml(m.name || "Speler")}:</span> ${escapeHtml(m.text)}</p>`).join("")
+      : `<span class="cr-chat-empty">Nog geen berichten in deze zaal.</span>`;
+    requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
+  }
+
+  function sendRoomChatMessage(text){
+    if (!currentRoom) return;
+    ccSend({ type: "room-chat", text: text.trim() });
+  }
+
+  // peerId -> naam, opgebouwd zodra we een naam leren kennen (via "joined"
+  // of "peer-joined") — nodig omdat een RTCPeerConnection pas lazily wordt
+  // aangemaakt bij het binnenkomen van een offer, maar de naam eerder gekend is.
+  const knownPeerNames = new Map();
+
+  // peerId -> { pc: RTCPeerConnection, audioEl: HTMLAudioElement, name: string,
+  //             speaking: bool, connState: string }
+  const peers = new Map();
+
+  function ccSetLobbyStatus(text, cls){
+    const el = document.getElementById("cc-lobby-status");
+    if (!el) return;
+    el.textContent = text;
+    el.className = "cc-status" + (cls ? " " + cls : "");
+  }
+
+  function showRoomView(show){
+    document.getElementById("cc-placeholder").style.display = show ? "none" : "flex";
+    document.getElementById("council-room").style.display = show ? "flex" : "none";
+  }
+
+  // ---------- Microfoon ----------
+  async function ensureLocalStream(){
+    if (localStream) return localStream;
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    return localStream;
+  }
+
+  function applyMicMuteState(){
+    if (!localStream) return;
+    localStream.getAudioTracks().forEach(t => { t.enabled = !micMuted; });
+    const btn = document.getElementById("cr-btn-mute");
+    if (btn){
+      btn.textContent = micMuted ? "🔇 Ontdempen" : "🎤 Dempen";
+      btn.classList.toggle("toggled", micMuted);
+    }
+  }
+
+  function applyDeafenState(){
+    peers.forEach(p => { if (p.audioEl) p.audioEl.muted = deafened; });
+    const btn = document.getElementById("cr-btn-deafen");
+    if (btn){
+      btn.textContent = deafened ? "🔈 Iedereen ontdempen" : "🔇 Iedereen dempen";
+      btn.classList.toggle("toggled", deafened);
+    }
+  }
+
+  // ---------- RTCPeerConnection-beheer (het "mesh") ----------
+  function getOrCreatePeer(peerId){
+    let p = peers.get(peerId);
+    if (p) return p;
+
+    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    p = { pc, audioEl: null, name: knownPeerNames.get(peerId) || "", speaking: false, connState: "connecting" };
+    peers.set(peerId, p);
+
+    if (localStream){
+      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+    }
+
+    pc.addEventListener("icecandidate", (e) => {
+      if (e.candidate) ccSend({ type: "webrtc-ice", to: peerId, candidate: e.candidate });
+    });
+
+    pc.addEventListener("track", (e) => {
+      if (!p.audioEl){
+        const audioEl = document.createElement("audio");
+        audioEl.autoplay = true;
+        audioEl.style.display = "none";
+        audioEl.muted = deafened;
+        document.body.appendChild(audioEl);
+        p.audioEl = audioEl;
+      }
+      p.audioEl.srcObject = e.streams[0];
+      setupSpeakingDetection(peerId, e.streams[0]);
+    });
+
+    pc.addEventListener("connectionstatechange", () => {
+      p.connState = pc.connectionState;
+      renderPeers();
+    });
+
+    renderPeers();
+    return p;
+  }
+
+  function removePeer(peerId){
+    const p = peers.get(peerId);
+    if (!p) return;
+    try { p.pc.close(); } catch (e){ /* ignore */ }
+    if (p.audioEl){
+      p.audioEl.srcObject = null;
+      p.audioEl.remove();
+    }
+    if (p.analyserCleanup) p.analyserCleanup();
+    peers.delete(peerId);
+    renderPeers();
+  }
+
+  function removeAllPeers(){
+    [...peers.keys()].forEach(removePeer);
+  }
+
+  // Eenvoudige "aan het praten"-detectie op het inkomend audiospoor, puur
+  // cosmetisch (highlight rond de avatar) — geen invloed op de verbinding.
+  function setupSpeakingDetection(peerId, stream){
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const source = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 512;
+      source.connect(analyser);
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      let raf = null;
+      function tick(){
+        analyser.getByteFrequencyData(data);
+        const avg = data.reduce((a, b) => a + b, 0) / data.length;
+        const p = peers.get(peerId);
+        if (p){
+          const nowSpeaking = avg > 12;
+          if (nowSpeaking !== p.speaking){
+            p.speaking = nowSpeaking;
+            renderPeers();
+          }
+        } else {
+          return; // peer weg: stop de lus
+        }
+        raf = requestAnimationFrame(tick);
+      }
+      tick();
+      const p = peers.get(peerId);
+      if (p) p.analyserCleanup = () => { if (raf) cancelAnimationFrame(raf); try { ctx.close(); } catch(e){} };
+    } catch (e) { /* speaking-indicator is puur decoratief, negeer fouten */ }
+  }
+
+  // Ik (de nieuw binnenkomende partij) initieer de offer naar elke reeds
+  // aanwezige peer — zie uitleg bovenaan waarom enkel deze kant offert.
+  async function initiateOfferTo(peerId){
+    const p = getOrCreatePeer(peerId);
+    try {
+      const offer = await p.pc.createOffer();
+      await p.pc.setLocalDescription(offer);
+      ccSend({ type: "webrtc-offer", to: peerId, sdp: p.pc.localDescription });
+    } catch (e){ /* verbindingsfout met deze ene peer, andere peers blijven werken */ }
+  }
+
+  async function handleOffer(fromPeerId, sdp){
+    const p = getOrCreatePeer(fromPeerId);
+    try {
+      await p.pc.setRemoteDescription(new RTCSessionDescription(sdp));
+      const answer = await p.pc.createAnswer();
+      await p.pc.setLocalDescription(answer);
+      ccSend({ type: "webrtc-answer", to: fromPeerId, sdp: p.pc.localDescription });
+    } catch (e){ /* ignore */ }
+  }
+
+  async function handleAnswer(fromPeerId, sdp){
+    const p = peers.get(fromPeerId);
+    if (!p) return;
+    try { await p.pc.setRemoteDescription(new RTCSessionDescription(sdp)); }
+    catch (e){ /* ignore */ }
+  }
+
+  async function handleIce(fromPeerId, candidate){
+    const p = peers.get(fromPeerId);
+    if (!p || !candidate) return;
+    try { await p.pc.addIceCandidate(new RTCIceCandidate(candidate)); }
+    catch (e){ /* ignore — kan gebeuren als de connectie ondertussen al weg is */ }
+  }
+
+  // ---------- Rendering: sidebar met de 5 zalen ----------
+  function renderSidebar(){
+    const wrap = document.getElementById("cc-room-list");
+    if (!wrap) return;
+    wrap.innerHTML = "";
+
+    ROOMS.forEach(r => {
+      const occupants = roomsInfo[r.code] || [];
+      const isActive = currentRoom === r.code;
+
+      const card = document.createElement("div");
+      card.className = "cc-room-card" + (isActive ? " active" : "");
+
+      const namesHtml = occupants.map(o => escapeHtml(o.name || "Speler")).join(", ");
+      card.innerHTML = `
+        <div class="cc-room-card-top">
+          <span class="cc-room-name">${escapeHtml(r.label)}</span>
+          <span class="cc-room-count">${occupants.length}</span>
+        </div>
+        <div class="cc-room-occupants${occupants.length ? "" : " cc-room-empty"}">${occupants.length ? namesHtml : "Leeg"}</div>
+        ${isActive ? '<div class="cc-room-you">jij zit hier — klik om te verlaten</div>' : ""}
+      `;
+      card.addEventListener("click", () => {
+        if (isActive) ccLeaveRoom();
+        else ccJoinRoom(r.code);
+      });
+      wrap.appendChild(card);
+    });
+  }
+
+  // ---------- Rendering: peers binnen de zaal waar je zelf in zit ----------
+  // Tekent de bolvormige hoed-avatar voor een gegeven naam op een canvas.
+  // Elke ingelogde client heeft bij het inloggen al de volledige Drive-sync
+  // (incl. "hats") opgehaald, dus ook de hoeden van andere spelers zijn al
+  // lokaal gekend — er is geen extra netwerkverkeer voor nodig. (Kanttekening:
+  // dit is dus een snapshot van bij het inloggen; wijzigt iemand zijn hoed
+  // tijdens de sessie, dan komt dat enkel door via de "wizards:hat-updated"
+  // boodschap, zie window.addEventListener hieronder.)
+  function drawPeerAvatar(canvasEl, name){
+    if (!canvasEl || !window.HatAvatar) return;
+    try { HatAvatar.renderCircle(canvasEl, HatAvatar.getConfig(name)); }
+    catch (e) { /* canvas-fout mag de rest van de UI niet blokkeren */ }
+  }
+
+  function renderPeers(){
+    const wrap = document.getElementById("cr-peers");
+    const emptyHint = document.getElementById("cr-empty-hint");
+    if (!wrap) return;
+    wrap.innerHTML = "";
+
+    const selfCard = document.createElement("div");
+    selfCard.className = "cr-peer-card cr-self-card";
+    selfCard.innerHTML = `
+      <div class="cr-peer-avatar">
+        <canvas class="cr-hat-canvas" width="52" height="52"></canvas>
+        ${micMuted ? '<span class="cr-mute-badge" title="Jij staat gedempt">🔇</span>' : ""}
+      </div>
+      <div class="cr-peer-name">${escapeHtml(myName)} (jij)</div>
+      <div class="cr-peer-status ok">verbonden</div>
+    `;
+    wrap.appendChild(selfCard);
+    drawPeerAvatar(selfCard.querySelector(".cr-hat-canvas"), myName);
+
+    peers.forEach((p, peerId) => {
+      const card = document.createElement("div");
+      card.className = "cr-peer-card";
+      const statusLabel = { connecting: "verbinden…", connected: "verbonden", disconnected: "verbinding verbroken", failed: "verbinding mislukt", closed: "gesloten" }[p.connState] || p.connState;
+      const statusCls = p.connState === "connected" ? "ok" : (p.connState === "failed" ? "err" : "");
+      const peerName = p.name || ("Speler " + peerId.slice(0, 5));
+      card.innerHTML = `
+        <div class="cr-peer-avatar${p.speaking ? " speaking" : ""}">
+          <canvas class="cr-hat-canvas" width="52" height="52"></canvas>
+        </div>
+        <div class="cr-peer-name">${escapeHtml(peerName)}</div>
+        <div class="cr-peer-status ${statusCls}">${escapeHtml(statusLabel)}</div>
+      `;
+      wrap.appendChild(card);
+      drawPeerAvatar(card.querySelector(".cr-hat-canvas"), peerName);
+    });
+
+    emptyHint.style.display = peers.size === 0 ? "block" : "none";
+    document.getElementById("cr-count").textContent = `${peers.size + 1} aanwezig`;
+  }
+
+  // ---------- WebSocket / signalering ----------
+  function ccSend(obj){
+    if (!ccSocket || ccSocket.readyState !== WebSocket.OPEN) return;
+    try { ccSocket.send(JSON.stringify(obj)); } catch (e){ /* ignore */ }
+  }
+
+  // Verbindt de "lobby"-socket (geen zaal, geen microfoon) — gebeurt
+  // automatisch na inloggen en blijft in principe de hele sessie open, ook
+  // terwijl je een zaal in- en uitstapt.
+  function ccConnectLobby(){
+    ccIntentionalClose = false;
+    ccOpenSocket();
+  }
+
+  function ccOpenSocket(){
+    if (ccReconnectTimer){ clearTimeout(ccReconnectTimer); ccReconnectTimer = null; }
+    ccSetLobbyStatus("Verbinden met de server…", "busy");
+    let socket;
+    try { socket = new WebSocket(ccServerUrl); }
+    catch (e){ ccSetLobbyStatus("Ongeldig server-adres.", "err"); return; }
+    ccSocket = socket;
+
+    socket.addEventListener("open", () => {
+      lobbyConnected = true;
+      ccSetLobbyStatus("Verbonden — kies een zaal.", "ok");
+      if (currentRoom){
+        // Was al in een zaal vóór een verbindingsonderbreking: eerst alle
+        // bestaande RTCPeerConnections opruimen. Zonder dit blijven oude/
+        // kapotte verbindingen (met de vroegere peerIds van anderen) hangen
+        // en proberen ze soms nog audio te sturen naast de nieuwe join —
+        // dat gaf de gemelde "dubbele deelnemer met vervormde audio". De
+        // server stuurt bij deze nieuwe join hoe dan ook een verse lijst van
+        // aanwezige peers terug, dus we bouwen alles gewoon opnieuw op.
+        removeAllPeers();
+        ccSend({ type: "join", room: currentRoom, name: myName });
+      }
+    });
+
+    socket.addEventListener("message", (ev) => {
+      let msg;
+      try { msg = JSON.parse(ev.data); } catch (e){ return; }
+      if (!msg || typeof msg !== "object") return;
+
+      if (msg.type === "rooms-info"){
+        roomsInfo = msg.rooms || {};
+        renderSidebar();
+        return;
+      }
+      if (msg.type === "joined"){
+        myPeerId = msg.peerId;
+        const roomDef = ROOMS.find(r => r.code === currentRoom);
+        document.getElementById("cr-room-label").textContent = `🎙️ Council — ${roomDef ? roomDef.label : currentRoom}`;
+        showRoomView(true);
+        renderPeers();
+        // Ikzelf ben de nieuwkomer: naar elke reeds aanwezige peer initieer ik de offer.
+        (msg.peers || []).forEach(peer => {
+          knownPeerNames.set(peer.peerId, peer.name);
+          initiateOfferTo(peer.peerId);
+        });
+        return;
+      }
+      if (msg.type === "peer-joined"){
+        knownPeerNames.set(msg.peerId, msg.name);
+        const existing = peers.get(msg.peerId);
+        if (existing) existing.name = msg.name;
+        // Puur informatief — de RTCPeerConnection wordt lazily aangemaakt
+        // zodra de bijhorende offer binnenkomt (zie handleOffer).
+        renderPeers();
+        return;
+      }
+      if (msg.type === "peer-left"){
+        removePeer(msg.peerId);
+        return;
+      }
+      if (msg.type === "room-chat-history"){
+        roomChatMessages = Array.isArray(msg.messages) ? msg.messages : [];
+        renderRoomChat();
+        return;
+      }
+      if (msg.type === "room-chat"){
+        roomChatMessages.push({ peerId: msg.peerId, name: msg.name, text: msg.text, time: msg.time });
+        if (roomChatMessages.length > 200) roomChatMessages.splice(0, roomChatMessages.length - 200);
+        renderRoomChat();
+        return;
+      }
+      if (msg.type === "forum-sync" && msg.forum){
+        // Live update van een andere speler (of een "heb ik iets gemist"-duwtje
+        // meteen na het verbinden) — gewoon de lokale forum-state vervangen en
+        // herrenderen. Geen eigen Drive-fetch nodig: de afzender heeft dit pas
+        // gestuurd na een geverifieerde, succesvolle schrijfactie.
+        driveData = Object.assign({}, driveData || {}, { forum: msg.forum });
+        renderForumSublist();
+        return;
+      }
+      if (msg.type === "raven-sync" && msg.ravenNotice){
+        // Zelfde principe als forum-sync, voor de raaf-aankondiging.
+        driveData = Object.assign({}, driveData || {}, { ravenNotice: msg.ravenNotice });
+        renderRavenWidget();
+        return;
+      }
+      if (msg.type === "webrtc-offer"){
+        handleOffer(msg.from, msg.sdp);
+        return;
+      }
+      if (msg.type === "webrtc-answer"){
+        handleAnswer(msg.from, msg.sdp);
+        return;
+      }
+      if (msg.type === "webrtc-ice"){
+        handleIce(msg.from, msg.candidate);
+        return;
+      }
+      // Andere berichttypes (bv. arena-state van de gedeelde relay-server)
+      // zijn hier niet relevant en worden genegeerd.
+    });
+
+    socket.addEventListener("close", () => {
+      lobbyConnected = false;
+      if (!ccIntentionalClose){
+        ccSetLobbyStatus("Verbinding verbroken — opnieuw proberen…", "err");
+        ccReconnectTimer = setTimeout(ccOpenSocket, 2000);
+      }
+    });
+
+    socket.addEventListener("error", () => {
+      ccSetLobbyStatus("Verbindingsfout — controleer het server-adres.", "err");
+    });
+  }
+
+  // ---------- Zaal kiezen / verlaten ----------
+  async function ccJoinRoom(code){
+    if (!lobbyConnected || !ccSocket || ccSocket.readyState !== WebSocket.OPEN){
+      ccSetLobbyStatus("Nog niet verbonden — even geduld.", "err");
+      return;
+    }
+    ccSetLobbyStatus("Microfoon aanvragen…", "busy");
+    try {
+      await ensureLocalStream();
+      ccSetLobbyStatus("Verbonden — kies een zaal.", "ok");
+    } catch (e){
+      ccSetLobbyStatus("Kon geen microfoontoegang krijgen — je kan wel meeluisteren, maar niet praten.", "err");
+      // Joinen gaat door, ook zonder microfoon: puur luisteren blijft mogelijk.
+    }
+    removeAllPeers();
+    currentRoom = code;
+    roomChatMessages = [];
+    renderRoomChat();
+    renderSidebar();
+    ccSend({ type: "join", room: code, name: myName });
+  }
+
+  function ccLeaveRoom(){
+    if (!currentRoom) return;
+    ccSend({ type: "leave" });
+    currentRoom = null;
+    myPeerId = null;
+    roomChatMessages = [];
+    removeAllPeers();
+    if (localStream){
+      localStream.getTracks().forEach(t => t.stop());
+      localStream = null;
+    }
+    micMuted = false;
+    showRoomView(false);
+    renderSidebar();
+  }
+
+  // ---------- UI-koppeling ----------
+  (function initUi(){
+    const settings = loadCcSettings();
+    ccServerUrl = settings.serverUrl;
+    document.getElementById("cc-server-url").value = ccServerUrl;
+
+    document.getElementById("cc-btn-advanced-toggle").addEventListener("click", () => {
+      const panel = document.getElementById("cc-advanced-panel");
+      panel.style.display = panel.style.display === "none" ? "flex" : "none";
+    });
+    document.getElementById("cc-btn-server-apply").addEventListener("click", () => {
+      const val = (document.getElementById("cc-server-url").value || "").trim();
+      if (!val) return;
+      ccServerUrl = val;
+      saveCcSettings(ccServerUrl);
+      ccIntentionalClose = true;
+      if (ccReconnectTimer){ clearTimeout(ccReconnectTimer); ccReconnectTimer = null; }
+      if (ccSocket){ try { ccSocket.close(); } catch(e){ /* ignore */ } }
+      ccLeaveRoom();
+      ccConnectLobby();
+    });
+
+    document.getElementById("cr-btn-mute").addEventListener("click", () => {
+      micMuted = !micMuted;
+      applyMicMuteState();
+      renderPeers();
+    });
+    document.getElementById("cr-btn-deafen").addEventListener("click", () => {
+      deafened = !deafened;
+      applyDeafenState();
+    });
+    document.getElementById("cr-btn-leave").addEventListener("click", ccLeaveRoom);
+
+    const crChatInput = document.getElementById("cr-chat-input");
+    const crChatSend = document.getElementById("cr-chat-send");
+    function doSendRoomChat(){
+      const val = crChatInput.value;
+      if (!val || !val.trim()) return;
+      sendRoomChatMessage(val);
+      crChatInput.value = "";
+      crChatInput.focus();
+    }
+    crChatSend.addEventListener("click", doSendRoomChat);
+    crChatInput.addEventListener("keydown", (e) => { if (e.key === "Enter") doSendRoomChat(); });
+
+    // ---- Raaf-aankondiging: knoppen ----
+    const ravenPanel = document.getElementById("cc-raven-panel");
+    ravenPanel.style.display = "none"; // standaard dicht, cfr. de bell-icoon-conventie van whatsapp/sms
+    document.getElementById("cc-raven-btn").addEventListener("click", () => {
+      ravenPanelOpen = !ravenPanelOpen;
+      ravenPanel.style.display = ravenPanelOpen ? "flex" : "none";
+      if (ravenPanelOpen) renderRavenWidget();
+    });
+    document.getElementById("cc-raven-save").addEventListener("click", saveRavenNotice);
+
+    // ---- Forum: knoppen ----
+    document.getElementById("cc-forum-refresh").addEventListener("click", refreshDriveData);
+    document.getElementById("cc-forum-new-sub").addEventListener("click", () => {
+      const name = prompt("Naam van het nieuwe subforum:");
+      if (!name || !name.trim()) return;
+      createSubforum(name.trim());
+    });
+
+    renderSidebar();
+  })();
+
+  if (window.self !== window.top){
+    const bar = document.getElementById("drive-bar");
+    if (bar) bar.style.display = "none";
+  }
+
+  // ---------- Login / Drive-sync (gedeelde module, ongewijzigd) ----------
+  // Enkel gebruikt als toegangspoort (consistent met de andere modules) en
+  // om de ingevulde naam over te nemen als weergavenaam in de council-room.
+  // Geen meeting-/regelgeving-data meer nodig van Drive in deze module.
+  // Andere modules/tabs kunnen na een hoedwijziging een
+  // "wizards:hat-updated"-boodschap sturen (zie hat-avatar.js) — de
+  // drive-bar-bubbel zelf update dan al via shared/drive-auth.js, maar hier
+  // wordt bovendien de council-peerkaart (die zijn eigen canvas tekent)
+  // herrenderd, zowel voor jezelf als voor een eventuele andere speler in
+  // dezelfde zaal die net zijn hoed aanpaste.
+  window.addEventListener("message", function(e){
+    if (!e.data || e.data.type !== "wizards:hat-updated" || !window.HatAvatar) return;
+    HatAvatar.setHatInCache(e.data.username, e.data.config);
+    renderPeers();
+  });
+
+  DriveAuth.initLoginOverlay({
+    appTitle: "Wizards — Wizard Council",
+    onSuccess: function(data, session){
+      // De hoed-avatarbubbel in de drive-bar wordt al centraal gerenderd
+      // door shared/drive-auth.js (updateDriveUserLabel), vóór deze callback.
+      myName = session.username || "Speler";
+      driveData = data;
+      drivePassword = session.password;
+      renderRavenWidget();
+      renderForumSublist();
+      ccConnectLobby();
+    }
+  });
+
+})();
+</script>
+</body>
+</html>

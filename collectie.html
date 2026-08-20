@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wizards — Collectie</title>
+<link rel="stylesheet" href="shared/login-overlay.css">
+<link rel="stylesheet" href="shared/card-render.css">
+<link rel="stylesheet" href="shared/hat-avatar.css">
+<style>
+  :root{
+    --bg: #15121c;
+    --bg-vignette: radial-gradient(ellipse at 50% -10%, #241d33 0%, #15121c 55%);
+    --panel: #1e1a29;
+    --panel-2: #241f33;
+    --border: #362c49;
+    --border-soft: #2a2338;
+    --ink-light: #d9d2e8;
+    --ink-muted: #9788b3;
+    --ink-dim: #6f6288;
+    --gold: #c9a24b;
+    --gold-soft: #e2c583;
+    --parchment: #efe6d1;
+    --parchment-dark: #e2d5b5;
+    --parchment-ink: #2c2318;
+    --parchment-chip: #b7a578;
+    --parchment-chip-border: #8f7d4f;
+
+    --c-wizard: #3d5a80;
+    --c-manifestation: #3f6b4a;
+    --c-incantation: #9c3b4f;
+    --c-hex: #5b4b8a;
+    --c-destiny: #b8933a;
+    --c-burden: #5c4a3a;
+
+    --t-fire: #c1462b;
+    --t-earth: #6b5636;
+    --t-water: #2f6f8f;
+    --t-sky: #6fa8c9;
+    --t-shadow: #4a3a5c;
+    --t-light: #b9a666;
+
+    --font-display: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', serif;
+    --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: 'SF Mono', Consolas, Monaco, monospace;
+  }
+
+  *{ box-sizing: border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background: var(--bg-vignette);
+    color: var(--ink-light);
+    font-family: var(--font-ui);
+    min-height:100vh;
+  }
+
+  #collection-controls{
+    display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+    padding:16px 24px; border-bottom:1px solid var(--border); background: var(--panel);
+  }
+  #collection-controls input[type=text]{
+    background: var(--bg); border:1px solid var(--border); color: var(--ink-light);
+    padding:8px 10px; border-radius:5px; font-size:13px; width:200px;
+  }
+  #collection-controls select{
+    background: var(--bg); border:1px solid var(--border); color: var(--ink-light);
+    padding:8px 10px; border-radius:5px; font-size:13px;
+  }
+  #collection-controls label{ font-size:11px; color: var(--ink-dim); text-transform:uppercase; letter-spacing:0.5px; margin-right:4px; }
+  #collection-count{ margin-left:auto; font-size:12px; color: var(--ink-dim); }
+
+  #collection-stats{
+    display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+    padding:10px 24px; border-bottom:1px solid var(--border-soft); background: var(--panel-2);
+  }
+  #collection-stats .stat-pill{
+    display:flex; align-items:center; gap:6px; background: var(--panel);
+    border:1px solid var(--border); border-radius:14px; padding:4px 11px; font-size:12px;
+  }
+  #collection-stats .stat-pill .swatch{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  #collection-stats .stat-pill b{ color: var(--ink-light); font-family: var(--font-mono); }
+  #collection-stats .stat-pill.total{ border-color: var(--gold); color: var(--gold-soft); }
+  #collection-stats .stat-sep{ width:1px; height:16px; background: var(--border); margin:0 2px; }
+
+  #collection-grid{
+    display:flex; flex-wrap:wrap; gap:20px;
+    padding:24px; align-content:flex-start;
+  }
+  #collection-empty{
+    padding:60px 24px; text-align:center; color: var(--ink-dim); font-size:14px;
+  }
+
+  /* ---------- Drive sync bar ---------- */
+  #drive-bar{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:9px 24px; border-bottom:1px solid var(--border); background:#191423; }
+
+  /* ---------- Knoppen (gedeeld basispatroon, elke module definieert dit zelf) ---------- */
+  .btn{
+    font-family: var(--font-ui);
+    font-size:13px;
+    background: var(--panel-2);
+    color: var(--ink-light);
+    border:1px solid var(--border);
+    padding:8px 14px;
+    border-radius:5px;
+    cursor:pointer;
+    transition: border-color .15s, background .15s;
+    white-space:nowrap;
+  }
+  .btn:hover{ border-color: var(--gold); background:#2a2338; }
+  .btn.primary{ background: linear-gradient(180deg,#2f2743,#251f38); border-color: var(--gold); color: var(--gold-soft); }
+  .btn.primary:hover{ background:#352c4b; }
+  .btn.danger:hover{ border-color:#a1364a; color:#e79aaa; }
+  .btn.btn-subtle{ font-size:11px; padding:5px 8px; color: var(--ink-dim); opacity:0.75; }
+  .btn.btn-subtle:hover{ opacity:1; }
+  .btn.btn-subtle.danger{ color:#e79aaa; }
+  .btn:disabled{ opacity:0.35; cursor:default; pointer-events:none; }
+  .btn.file-btn{ position:relative; overflow:hidden; display:inline-block; }
+  .btn.file-btn input[type=file]{
+    position:absolute; inset:0; opacity:0; cursor:pointer; font-size:200px;
+  }
+
+  /* ---------- Layout: collectie-grid naast het deck-paneel ---------- */
+  #collection-layout{ display:flex; align-items:flex-start; min-height:0; }
+  #collection-main{ flex:1; min-width:0; }
+
+  .card-thumb-edit-btn{
+    position:absolute; top:8px; right:8px; z-index:2;
+    width:26px; height:26px; border-radius:50%;
+    background: rgba(21,18,28,0.85); border:1px solid var(--gold);
+    color: var(--gold-soft); font-size:12px;
+    display:flex; align-items:center; justify-content:center;
+    opacity:0; transition: opacity .12s; cursor:pointer;
+  }
+  .card-thumb:hover .card-thumb-edit-btn{ opacity:1; }
+  .card-thumb-edit-btn:hover{ background: rgba(21,18,28,1); }
+  .card-thumb-add-flash{
+    position:absolute; inset:0; z-index:1; border-radius:10px;
+    background: rgba(201, 162, 75, 0.35);
+    opacity:0; pointer-events:none; transition: opacity .25s;
+  }
+  .card-thumb.just-added .card-thumb-add-flash{ opacity:1; transition:none; }
+
+  /* ---------- Deckpaneel (naast Collectie) ---------- */
+  .stats-bar{
+    display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+    border:1px solid var(--border-soft); border-radius:8px; margin-bottom:12px; padding:8px 14px;
+  }
+  .stats-bar .stat-pill{
+    display:flex; align-items:center; gap:6px; background: var(--panel);
+    border:1px solid var(--border); border-radius:14px; padding:4px 11px; font-size:12px;
+  }
+  .stats-bar .stat-pill .swatch{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .stats-bar .stat-pill b{ color: var(--ink-light); font-family: var(--font-mono); }
+  .stats-bar .stat-pill.total{ border-color: var(--gold); color: var(--gold-soft); }
+  .stats-bar .stat-sep{ width:1px; height:16px; background: var(--border); margin:0 2px; }
+
+  #deck-panel{
+    width:300px; flex-shrink:0;
+    border-left:1px solid var(--border);
+    background: var(--panel);
+    min-height: calc(100vh - 73px);
+    padding:16px;
+  }
+  .deck-panel-head{ margin-bottom:12px; }
+  .deck-panel-title{
+    font-family: var(--font-display); font-size:15px; color: var(--gold-soft);
+    margin-bottom:10px;
+  }
+  .deck-panel-select-row{ display:flex; gap:8px; margin-bottom:8px; }
+  #deck-select{
+    flex:1; min-width:0; background: var(--bg); border:1px solid var(--border); color: var(--ink-light);
+    padding:8px 10px; border-radius:5px; font-size:13px;
+  }
+  #deck-panel-name{
+    width:100%; background: var(--bg); border:1px solid var(--border); color: var(--ink-light);
+    padding:8px 10px; border-radius:5px; font-size:13.5px; font-family: var(--font-display);
+    margin-bottom:8px;
+  }
+  .deck-panel-toolbar{ display:flex; flex-wrap:wrap; gap:6px; }
+  #deck-panel-stats{ padding:8px 10px; margin:0 0 10px; }
+  #deck-panel-stats .stat-pill{ font-size:11px; padding:3px 8px; }
+  .deck-panel-hint{ font-size:11px; color: var(--ink-dim); line-height:1.4; margin-bottom:10px; }
+  #deck-panel-empty{ font-size:12.5px; color: var(--ink-dim); padding:10px 0; }
+
+  .deck-edit-swatch{ width:9px; height:9px; border-radius:50%; display:inline-block; margin-right:7px; }
+
+  #deck-panel-list{ display:flex; flex-wrap:wrap; gap:6px; }
+  .in-deck-empty{ font-size:12px; color: var(--ink-dim); font-style:italic; }
+  .in-deck-chip{
+    display:inline-flex; align-items:center; gap:6px;
+    background: var(--panel-2); border:1px solid var(--gold); color: var(--gold-soft);
+    border-radius:12px; padding:3px 6px 3px 11px; font-size:12px;
+  }
+  .in-deck-chip-name{ color: var(--ink-light); }
+  .in-deck-chip-qty{ font-family: var(--font-mono); color: var(--gold-soft); }
+  .in-deck-chip-minus{
+    background:none; border:none; color: var(--ink-dim); cursor:pointer;
+    font-size:14px; line-height:1; padding:0 2px;
+  }
+  .in-deck-chip-minus:hover{ color: var(--gold-soft); }
+
+  /* ---------- Toast (bv. "toegevoegd aan deck") ---------- */
+  #deck-toast{
+    position:fixed; left:50%; bottom:26px; transform: translateX(-50%) translateY(10px);
+    background: var(--panel); border:1px solid var(--gold); color: var(--gold-soft);
+    padding:10px 18px; border-radius:20px; font-size:13px;
+    box-shadow: 0 8px 22px rgba(0,0,0,0.5);
+    opacity:0; pointer-events:none; transition: opacity .18s, transform .18s;
+    z-index:7000; white-space:nowrap;
+  }
+  #deck-toast.show{ opacity:1; transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 760px){
+    #collection-controls, #collection-stats{ padding-left:16px; padding-right:16px; }
+    #collection-controls{ padding-top:14px; padding-bottom:14px; }
+    #collection-controls input[type=text]{ width:100%; }
+    #collection-count{ margin-left:0; width:100%; }
+    #collection-grid{ padding:16px; gap:14px; justify-content:center; }
+
+    #collection-layout{ flex-direction:column; }
+    #deck-panel{ width:100%; min-height:0; border-left:none; border-top:1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+
+<div id="login-overlay">
+  <div class="login-card">
+    <div class="login-sigil">⟡</div>
+    <h2>Wizards — Collectie</h2>
+    <p class="login-sub">Log in om verder te gaan.</p>
+
+    <div id="login-form-fields">
+      <label for="login-username">Naam</label>
+      <input type="text" id="login-username" placeholder="Je naam (vrij te kiezen)" autocomplete="off">
+      <label for="login-password">Wachtwoord</label>
+      <input type="password" id="login-password" placeholder="Wachtwoord voor de Drive-sync" autocomplete="off">
+      <button class="btn primary" id="btn-login">Inloggen</button>
+    </div>
+
+    <div id="login-status"></div>
+
+    <div id="login-lastedit" style="display:none;">
+      <p id="login-lastedit-text"></p>
+      <button class="btn primary" id="btn-login-continue">Verdergaan</button>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+  <div id="drive-bar">
+    <span id="drive-user-label"></span>
+    <span id="drive-status"></span>
+  </div>
+
+  <div id="view-collection">
+    <div id="collection-controls">
+      <input type="text" id="col-search" placeholder="Zoek op naam, type, theme, location, tekst, tags, subtypes, rarity, ontwerper…">
+      <div>
+        <label for="col-filter-type">Type</label>
+        <select id="col-filter-type"><option value="">Alle</option></select>
+      </div>
+      <div>
+        <label for="col-filter-theme">Theme</label>
+        <select id="col-filter-theme"><option value="">Alle</option></select>
+      </div>
+      <div>
+        <label for="col-filter-location">Location</label>
+        <select id="col-filter-location"><option value="">Alle</option></select>
+      </div>
+      <div>
+        <label for="col-filter-tag">Tag</label>
+        <select id="col-filter-tag"><option value="">Alle</option></select>
+      </div>
+      <div>
+        <label for="col-filter-phase">Fase</label>
+        <select id="col-filter-phase"><option value="">Alle</option></select>
+      </div>
+      <div>
+        <label for="col-filter-status">Status</label>
+        <select id="col-filter-status"><option value="">Alle</option></select>
+      </div>
+      <div>
+        <label for="col-filter-createdBy">Ontworpen door</label>
+        <select id="col-filter-createdBy"><option value="">Alle</option></select>
+      </div>
+      <div>
+        <label for="col-sort">Sorteer</label>
+        <select id="col-sort">
+          <option value="name-asc">Naam (A–Z)</option>
+          <option value="name-desc">Naam (Z–A)</option>
+          <option value="type">Type</option>
+          <option value="theme">Theme</option>
+          <option value="location">Location</option>
+          <option value="phase">Fase</option>
+          <option value="status">Status</option>
+          <option value="createdBy">Ontworpen door</option>
+          <option value="lastUpdated-desc">Laatst gewijzigd (nieuw eerst)</option>
+          <option value="firstCreated-desc">Aangemaakt (nieuw eerst)</option>
+          <option value="actionCost">Action-kost</option>
+          <option value="spiteCost">Spite-kost</option>
+          <option value="body">Body</option>
+          <option value="mind">Mind</option>
+          <option value="soul">Soul</option>
+        </select>
+      </div>
+      <span id="collection-count"></span>
+    </div>
+    <div id="collection-layout">
+      <div id="collection-main">
+        <div id="collection-stats"></div>
+        <div id="collection-grid"></div>
+        <div id="collection-empty" style="display:none;">Nog geen kaarten in de collectie. Maak er een aan via het tabblad "Kaartbuilder".</div>
+      </div>
+
+      <aside id="deck-panel">
+        <div class="deck-panel-head">
+          <div class="deck-panel-title">Deck bouwen</div>
+          <div class="deck-panel-select-row">
+            <select id="deck-select"></select>
+          </div>
+          <input type="text" id="deck-panel-name" placeholder="Docknaam" style="display:none;">
+          <div class="deck-panel-toolbar">
+            <button class="btn btn-subtle" id="btn-new-deck" title="Nieuw deck">+ Nieuw</button>
+            <button class="btn btn-subtle" id="btn-duplicate-deck" title="Dupliceer dit deck">⧉ Dupliceer</button>
+            <button class="btn btn-subtle danger" id="btn-delete-deck" title="Verwijder dit deck">🗑 Verwijder</button>
+            <button class="btn btn-subtle" id="btn-export-deck" title="Exporteer als JSON">⬇ Export</button>
+            <button class="btn btn-subtle file-btn" id="btn-import-deck-wrap" title="Importeer deck JSON">⬆ Import
+              <input type="file" id="deck-import-file" accept="application/json,.json">
+            </button>
+          </div>
+        </div>
+        <div id="deck-panel-stats" class="stats-bar"></div>
+        <div class="deck-panel-hint">Klik op een kaart hiernaast om ze aan dit deck toe te voegen.</div>
+        <div id="deck-panel-list"></div>
+        <div id="deck-panel-empty" style="display:none;">Nog geen decks. Klik op “+ Nieuw” om te beginnen.</div>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<div id="deck-toast"></div>
+
+<script src="shared/card-data.js"></script>
+<script src="shared/card-render.js"></script>
+<script src="shared/card-filters.js"></script>
+<script src="shared/hat-avatar.js"></script>
+<script src="shared/drive-auth.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  let collection = [];
+
+  function findCard(id){ return collection.find(c => c.id === id) || null; }
+
+  function renderCollectionStats(){
+    const wrap = document.getElementById("collection-stats");
+    if (collection.length === 0){ wrap.innerHTML = ""; return; }
+
+    const typeCounts = {};
+    TYPE_LIST.forEach(t => typeCounts[t] = 0);
+    let costSum = 0, costCount = 0, spiteSum = 0, spiteCount = 0;
+
+    collection.forEach(c => {
+      if (typeCounts[c.type] !== undefined) typeCounts[c.type]++;
+      const cfg = TYPE_CONFIG[c.type];
+      if (cfg && cfg.cost){
+        costSum += c.actionCost || 0; costCount++;
+        spiteSum += c.spiteCost || 0; spiteCount++;
+      }
+    });
+
+    const avgCost = costCount ? (costSum / costCount).toFixed(1) : "—";
+    const avgSpite = spiteCount ? (spiteSum / spiteCount).toFixed(1) : "—";
+
+    wrap.innerHTML = buildStatPillsHtml(collection.length, typeCounts, avgCost, avgSpite);
+  }
+
+  function renderCollectionView(){
+    populateFilterSelects("col", collection);
+    renderCollectionStats();
+
+    const grid = document.getElementById("collection-grid");
+    const emptyMsg = document.getElementById("collection-empty");
+    const countLabel = document.getElementById("collection-count");
+
+    const f = readFilterValues("col");
+    let filtered = collection.filter(c => matchesFilters(c, f));
+    filtered = sortCards(filtered, f.sortKey);
+
+    grid.innerHTML = "";
+    emptyMsg.style.display = collection.length === 0 ? "block" : "none";
+    countLabel.textContent = collection.length === 0 ? "" :
+      `${filtered.length} van ${collection.length} kaart${collection.length === 1 ? "" : "en"} getoond`;
+
+    filtered.forEach(card => {
+      const thumb = document.createElement("div");
+      thumb.className = "card-thumb";
+      thumb.title = "Klik om toe te voegen aan het actieve deck\n" +
+        (card.status ? "Status: " + card.status + "\n" : "") +
+        (card.lastUpdated ? "Laatst gewijzigd: " + new Date(card.lastUpdated).toLocaleString("nl-BE") + (card.lastUpdatedBy ? " door " + card.lastUpdatedBy : "") : "");
+      thumb.innerHTML = buildCardFrameHtml(card) + '<div class="card-thumb-add-flash"></div>';
+
+      const editBtn = document.createElement("button");
+      editBtn.type = "button";
+      editBtn.className = "card-thumb-edit-btn";
+      editBtn.title = "Bewerk in Kaartbuilder";
+      editBtn.textContent = "\u270e";
+      editBtn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        // Andere iframe, dus via de shell (postMessage) — geen effect als
+        // deze pagina standalone (niet ingebed) geopend is.
+        window.parent.postMessage({ type: "wizards:edit-card", cardId: card.id }, "*");
+      });
+      thumb.appendChild(editBtn);
+
+      thumb.addEventListener("click", () => addCardToActiveDeck(card.id, thumb));
+      grid.appendChild(thumb);
+    });
+  }
+
+  // ---------- Decks ----------
+  // Decks worden rechtstreeks vanuit deze Collectie-tab gebouwd: het
+  // deck-paneel toont het actieve deck, en een klik op een kaart in het
+  // grid voegt hem toe (zie addCardToActiveDeck). Beheer (nieuw/dupliceer/
+  // verwijder/import/export) gebeurt via de knoppenrij bovenaan het paneel.
+  // Decks leven enkel lokaal in deze browser (localStorage), niet via Drive.
+  const DECKS_STORAGE_KEY = "wizards_decks_v1";
+  const ACTIVE_DECK_KEY = "wizards_active_deck_v1";
+  let decks = [];
+  let activeDeckId = null;
+
+  function loadDecks(){
+    try {
+      const saved = localStorage.getItem(DECKS_STORAGE_KEY);
+      if (saved) decks = JSON.parse(saved);
+    } catch (e) { decks = []; }
+    if (!Array.isArray(decks)) decks = [];
+    try { activeDeckId = localStorage.getItem(ACTIVE_DECK_KEY) || null; } catch (e) { activeDeckId = null; }
+    if (!findDeck(activeDeckId)) activeDeckId = decks[0] ? decks[0].id : null;
+  }
+
+  function saveDecks(){
+    try { localStorage.setItem(DECKS_STORAGE_KEY, JSON.stringify(decks)); } catch (e) { /* ignore */ }
+  }
+
+  function saveActiveDeckId(){
+    try { localStorage.setItem(ACTIVE_DECK_KEY, activeDeckId || ""); } catch (e) { /* ignore */ }
+  }
+
+  function deckCardCount(deck){
+    return Object.values(deck.qty || {}).reduce((a, b) => a + (b || 0), 0);
+  }
+
+  function findDeck(id){
+    return decks.find(d => d.id === id) || null;
+  }
+
+  function showDeckToast(msg){
+    const el = document.getElementById("deck-toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(showDeckToast._t);
+    showDeckToast._t = setTimeout(() => el.classList.remove("show"), 1400);
+  }
+
+  // Klik op een kaart in de Collectie: voegt 1 exemplaar toe aan het
+  // actieve deck. Is er nog geen deck, dan wordt er automatisch één
+  // aangemaakt zodat de eerste klik altijd meteen werkt.
+  function addCardToActiveDeck(cardId, thumbEl){
+    if (!activeDeckId || !findDeck(activeDeckId)){
+      const deck = { id: uid(), name: "Nieuw deck", qty: {} };
+      decks.push(deck);
+      activeDeckId = deck.id;
+      saveActiveDeckId();
+    }
+    const deck = findDeck(activeDeckId);
+    deck.qty[cardId] = (deck.qty[cardId] || 0) + 1;
+    saveDecks();
+    renderDeckPanel();
+
+    const card = findCard(cardId);
+    showDeckToast(`+1 ${card ? (card.name || "kaart") : "kaart"} → ${deck.name || "deck"}`);
+    if (thumbEl){
+      thumbEl.classList.add("just-added");
+      requestAnimationFrame(() => thumbEl.classList.remove("just-added"));
+    }
+  }
+
+  function newDeck(){
+    const deck = { id: uid(), name: "Nieuw deck", qty: {} };
+    decks.push(deck);
+    activeDeckId = deck.id;
+    saveDecks();
+    saveActiveDeckId();
+    renderDeckPanel();
+    const nameInput = document.getElementById("deck-panel-name");
+    nameInput.focus();
+    nameInput.select();
+  }
+
+  function duplicateDeck(id){
+    const deck = findDeck(id);
+    if (!deck) return;
+    const copy = { id: uid(), name: deck.name + " (kopie)", qty: Object.assign({}, deck.qty) };
+    decks.push(copy);
+    activeDeckId = copy.id;
+    saveDecks();
+    saveActiveDeckId();
+    renderDeckPanel();
+  }
+
+  function deleteDeck(id){
+    const deck = findDeck(id);
+    if (!deck) return;
+    if (!confirm(`Deck "${deck.name}" verwijderen?`)) return;
+    decks = decks.filter(d => d.id !== id);
+    activeDeckId = decks[0] ? decks[0].id : null;
+    saveDecks();
+    saveActiveDeckId();
+    renderDeckPanel();
+  }
+
+  function exportDeck(deck){
+    const cards = Object.entries(deck.qty || {})
+      .filter(([, qty]) => qty > 0)
+      .map(([cardId, qty]) => {
+        const card = findCard(cardId);
+        return { id: cardId, name: card ? card.name : null, qty };
+      });
+    const payload = { name: deck.name, qty: deck.qty || {}, cards };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = (deck.name || "deck").replace(/[^a-z0-9\-_]/gi, "_") + ".json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function importDeckFromFile(file){
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      let data;
+      try { data = JSON.parse(ev.target.result); }
+      catch (e) { alert("Kon dit bestand niet lezen. Is het een geldig deck-JSON-bestand?"); return; }
+
+      const qty = (data && typeof data.qty === "object" && data.qty) ? data.qty : {};
+      const cleanQty = {};
+      Object.entries(qty).forEach(([cardId, n]) => {
+        const num = Math.max(0, parseInt(n) || 0);
+        if (num > 0) cleanQty[cardId] = num;
+      });
+
+      const deck = {
+        id: uid(),
+        name: (data && typeof data.name === "string" && data.name.trim()) ? data.name.trim() : "Geïmporteerd deck",
+        qty: cleanQty
+      };
+      decks.push(deck);
+      activeDeckId = deck.id;
+      saveDecks();
+      saveActiveDeckId();
+      renderDeckPanel();
+    };
+    reader.readAsText(file);
+  }
+
+  // ---------- Deckpaneel (rechts in Collectie) ----------
+  function renderDeckPanel(){
+    if (!findDeck(activeDeckId)) activeDeckId = decks[0] ? decks[0].id : null;
+
+    const selectEl = document.getElementById("deck-select");
+    const nameInput = document.getElementById("deck-panel-name");
+    const emptyEl = document.getElementById("deck-panel-empty");
+    const statsEl = document.getElementById("deck-panel-stats");
+    const hintEl = document.querySelector(".deck-panel-hint");
+    const toolbarButtons = document.querySelectorAll(".deck-panel-toolbar .btn:not(.file-btn)");
+
+    if (decks.length === 0){
+      selectEl.style.display = "none";
+      nameInput.style.display = "none";
+      hintEl.style.display = "none";
+      statsEl.innerHTML = "";
+      document.getElementById("deck-panel-list").innerHTML = "";
+      emptyEl.style.display = "block";
+      toolbarButtons.forEach(b => { if (b.id !== "btn-new-deck") b.disabled = true; });
+      return;
+    }
+
+    emptyEl.style.display = "none";
+    selectEl.style.display = "block";
+    nameInput.style.display = "block";
+    hintEl.style.display = "block";
+    toolbarButtons.forEach(b => b.disabled = false);
+
+    selectEl.innerHTML = decks.map(d =>
+      `<option value="${d.id}">${escapeHtml(d.name || "(naamloos deck)")} — ${deckCardCount(d)}</option>`
+    ).join("");
+    selectEl.value = activeDeckId;
+
+    const deck = findDeck(activeDeckId);
+    nameInput.value = deck.name;
+
+    renderDeckPanelStats(deck);
+    renderDeckPanelList(deck);
+  }
+
+  function renderDeckPanelStats(deck){
+    const wrap = document.getElementById("deck-panel-stats");
+    const total = deckCardCount(deck);
+    if (total === 0){ wrap.innerHTML = ""; return; }
+
+    const typeCounts = {};
+    TYPE_LIST.forEach(t => typeCounts[t] = 0);
+    let costSum = 0, costCount = 0, spiteSum = 0, spiteCount = 0;
+
+    Object.entries(deck.qty || {}).forEach(([cardId, qty]) => {
+      if (!qty) return;
+      const card = findCard(cardId);
+      if (!card) return;
+      if (typeCounts[card.type] !== undefined) typeCounts[card.type] += qty;
+      const cfg = TYPE_CONFIG[card.type];
+      if (cfg && cfg.cost){
+        costSum += (card.actionCost || 0) * qty; costCount += qty;
+        spiteSum += (card.spiteCost || 0) * qty; spiteCount += qty;
+      }
+    });
+
+    const avgCost = costCount ? (costSum / costCount).toFixed(1) : "—";
+    const avgSpite = spiteCount ? (spiteSum / spiteCount).toFixed(1) : "—";
+
+    wrap.innerHTML = buildStatPillsHtml(total, typeCounts, avgCost, avgSpite);
+  }
+
+  function renderDeckPanelList(deck){
+    const wrap = document.getElementById("deck-panel-list");
+    const entries = Object.entries(deck.qty || {}).filter(([, q]) => q > 0);
+    if (entries.length === 0){
+      wrap.innerHTML = '<span class="in-deck-empty">Nog geen kaarten in dit deck.</span>';
+      return;
+    }
+    const items = entries
+      .map(([cardId, qty]) => ({ cardId, qty, card: findCard(cardId) }))
+      .sort((a, b) => (a.card ? a.card.name || "" : "").localeCompare(b.card ? b.card.name || "" : ""));
+
+    wrap.innerHTML = items.map(it => `
+      <span class="in-deck-chip" data-id="${it.cardId}">
+        <span class="in-deck-chip-name">${escapeHtml(it.card ? (it.card.name || "Naamloze kaart") : "Verwijderde kaart")}</span>
+        <span class="in-deck-chip-qty">×${it.qty}</span>
+        <button type="button" class="in-deck-chip-minus" title="Verminder met 1">−</button>
+      </span>
+    `).join("");
+
+    wrap.querySelectorAll(".in-deck-chip").forEach(chip => {
+      const cardId = chip.dataset.id;
+      const card = findCard(cardId);
+      if (card){
+        chip.addEventListener("mouseenter", () => showCardPreview(chip, card));
+        chip.addEventListener("mouseleave", hideCardPreview);
+      }
+    });
+
+    wrap.querySelectorAll(".in-deck-chip-minus").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const cardId = btn.closest(".in-deck-chip").dataset.id;
+        const cur = deck.qty[cardId] || 0;
+        const v = cur - 1;
+        if (v <= 0) delete deck.qty[cardId]; else deck.qty[cardId] = v;
+        saveDecks();
+        renderDeckPanel();
+      });
+    });
+  }
+
+  document.getElementById("btn-new-deck").addEventListener("click", newDeck);
+  document.getElementById("btn-duplicate-deck").addEventListener("click", () => {
+    if (activeDeckId) duplicateDeck(activeDeckId);
+  });
+  document.getElementById("btn-delete-deck").addEventListener("click", () => {
+    if (activeDeckId) deleteDeck(activeDeckId);
+  });
+  document.getElementById("deck-select").addEventListener("change", (e) => {
+    activeDeckId = e.target.value;
+    saveActiveDeckId();
+    renderDeckPanel();
+  });
+  document.getElementById("deck-panel-name").addEventListener("input", () => {
+    const deck = findDeck(activeDeckId);
+    if (!deck) return;
+    deck.name = document.getElementById("deck-panel-name").value;
+    saveDecks();
+    const opt = document.querySelector(`#deck-select option[value="${activeDeckId}"]`);
+    if (opt) opt.textContent = `${deck.name || "(naamloos deck)"} — ${deckCardCount(deck)}`;
+  });
+  document.getElementById("btn-export-deck").addEventListener("click", () => {
+    const deck = findDeck(activeDeckId);
+    if (deck) exportDeck(deck);
+  });
+  document.getElementById("deck-import-file").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (file) importDeckFromFile(file);
+    e.target.value = "";
+  });
+
+  ["col-search"].forEach(id => document.getElementById(id).addEventListener("input", renderCollectionView));
+  ["col-filter-type","col-filter-theme","col-filter-location","col-filter-tag","col-filter-phase","col-filter-status","col-filter-createdBy","col-sort"].forEach(id =>
+    document.getElementById(id).addEventListener("change", renderCollectionView));
+
+  if (window.self !== window.top){
+    const bar = document.getElementById("drive-bar");
+    if (bar) bar.style.display = "none";
+  }
+
+  // Live-synchronisatie: de Kaartbuilder stuurt zijn collectie door (via de
+  // shell) bij elke wijziging en na elke Drive-actie, zodat nieuwe/gewijzigde
+  // kaarten hier meteen verschijnen zonder herladen of opnieuw inloggen.
+  window.addEventListener("message", function(e){
+    if (!e.data || e.data.type !== "wizards:collection-sync" || !Array.isArray(e.data.collection)) return;
+    collection = e.data.collection.map(normalizeCard);
+    renderCollectionView();
+    renderDeckPanel();
+  });
+
+  DriveAuth.initLoginOverlay({
+    appTitle: "Wizards — Collectie",
+    onSuccess: function(data, session){
+      // De hoed-avatarbubbel wordt al centraal gerenderd door
+      // shared/drive-auth.js (updateDriveUserLabel), vóór deze callback
+      // — hier is dus niets extra's meer nodig.
+      collection = Array.isArray(data.collection) ? data.collection.map(normalizeCard) : [];
+      loadDecks();
+      renderCollectionView();
+      renderDeckPanel();
+    }
+  });
+})();
+</script>
+</body>
+</html>

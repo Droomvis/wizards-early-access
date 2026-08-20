@@ -1,0 +1,166 @@
+arena.html
+	gedigitaliseerde testomgeving
+cardbuilder.html
+	module voor kaartdesign
+collectie.html
+	module voor consulteren kaarten + deckbuilding (deckpaneel naast de collectie:
+	klik op een kaart om ze aan het actieve deck toe te voegen). Vroeger was dit
+	een aparte module, decks.html (nu in Legacy) — op 2026-08-14 samengevoegd
+	met collectie.html voor een vlottere workflow.
+council.html
+	module voor interspeler-communicatie: 5 vaste voice-zalen (WebRTC-mesh via
+	de relay-server), een raaf-aankondiging en een rudimentair forum (beide
+	opgeslagen als extra top-level velden "ravenNotice"/"forum" in de
+	zelfde wizards-cards.json als de collectie/hoeden — cfr. "hats" hieronder),
+	en sinds 2026-08-18 ook tekstchat per zaal (via de relay-server, los van
+	de Drive-json, zie server.js).
+index.html
+	laadt andere modules, zorgt voor auth
+Wizards_Mobile.html
+	mobiel-geoptimaliseerde, standalone combinatie van kaartbuilder + collectie
+	+ deckbuilding, voor gebruik op een telefoon (bv. op de trein). Gebruikt
+	dezelfde shared/*.js en shared/*.css en dezelfde Drive-login/-sync als de
+	andere modules — kaarten die je hier bewerkt verschijnen dus gewoon in
+	cardbuilder.html/collectie.html na een Drive-sync, en omgekeerd. Niet in
+	de shell (index.html) ingebed; rechtstreeks als los bestand te openen.
+	Ontwerp: onderaan vaste tab-balk (Collectie/Editor/Deck) i.p.v. zijbalken,
+	kaarten in de Collectie tonen een compacte rij i.p.v. de volledige
+	kaartafbeelding — tikken opent een bottom-sheet met het volledige
+	kaartvoorbeeld en duim-bereikbare knoppen (Bewerken/Aan deck/Dupliceer/
+	Verwijder). De Editor-tab toont het formulier in uitklapbare secties
+	(Basis/Kosten & Stats open, de rest toe) met steppers i.p.v. kale
+	getalvelden, een tik-om-te-vergroten live voorbeeld bovenaan, en een
+	vaste actiebalk (Dupliceer/Verwijder/Nieuw) net boven de tab-balk. Filters
+	& sorteren zitten in een aparte bottom-sheet i.p.v. een brede knoppenrij.
+	Save/Laad (Drive + lokaal) zit in een 🔄-sheet vanuit de topbalk.
+
+
+Centrale database ("wizards-cards.json" met kaarten en communicatie) gehost op google drive
+	https://drive.google.com/file/d/1SVaZiaeKGullhojSUAlYB3Sc38ALjARH/view?usp=drive_link
+wizards-cards.Json is bereikbaar door .html applicatie via Google aps script
+	https://script.google.com/home/projects/1cL4kPKw-6PKKDaxpIjfY_TnHWxFsYEhHZ_n42JxcJnVVaCIjZXfbFMnB/edit
+
+De hele Modulair-map (index.html + alle modules, inclusief Wizards_Mobile.html)
+wordt sinds 2026-08-20 ook gehost via GitHub Pages, zodat de gedeelde
+login-sessie tussen shell en module-tabs werkt (vereist https/localhost,
+niet file://) en zodat Wizards_Mobile.html als fullscreen app op een
+telefoon geïnstalleerd kan worden.
+	https://droomvis.github.io/wizards-mobile/
+	— opent automatisch index.html (de vertrouwde shell met tabbladen)
+	https://droomvis.github.io/wizards-mobile/Wizards_Mobile.html
+	— de mobiele versie, apart te bookmarken/installeren op een telefoon
+
+Mapstructuur (sinds 2026-08-20): de oude "Modulair"-map heet nu "development"
+— dat blijft de werkmap waar alles bewerkt wordt (ikzelf werk ook in deze map).
+Daarnaast, als zussen van "development" (dus rechtstreeks in Wizards\):
+- "GitPub": bevat KOPIEËN van enkel de bestanden die naar GitHub Pages gaan
+  (index.html + modules + Wizards_Mobile.html + manifest.webmanifest +
+  sw-mobile.js + icons/ + shared/ + Architectuur.txt). GitHub Desktop wordt
+  aan DEZE map gekoppeld, niet aan "development" — zo blijven de zip's,
+  "Early Access Automation" en andere niet-te-hosten spullen gegarandeerd
+  buiten de publieke repo, zonder een .gitignore te moeten onderhouden.
+  Na elke wijziging in "development" die live moet: het aangepaste bestand
+  overkopiëren naar dezelfde plek in "GitPub", dan pas commit+push.
+- "Elders gehost": (verplaatst uit development) bevat de losstaande
+  arena-server-code (package.json, server.js) die apart via de
+  Droomvis/Wizards_Arena-repo op GitHub + Render draait — zie hieronder.
+
+Code voor de arena wordt onderhouden op GitHub
+	https://github.com/Droomvis/Wizards_Arena
+Code voor de arena wordt gehost op Render
+	https://dashboard.render.com/web/srv-d9pjmaf10e5c73diqjog
+
+Deze folder bevat kopieën van de elders gehoste files en code.
+
+Decks gemaakt via de .html applicaties worden bewaard op localstorage. Het is mogelijk de huidige kaartdatabase, geladen in de .html applicaties, op te slaan in localstoragen beide opties creëren .json files.
+
+Op 2026-08-17 verplaatst: de Save/Laad-.json-knoppen (Drive + lokaal) zitten
+nu enkel nog in de drive-bar van index.html, niet meer als aparte balk in
+cardbuilder.html zelf (dat gaf een dubbele balk). index.html stuurt de
+knop-commando's via postMessage naar de Kaartbuilder-iframe, die de collectie
+en de Drive-koppeling beheert. cardbuilder.html blijft, indien rechtstreeks
+geopend (niet via de shell), gewoon zijn eigen lokale knoppenrij tonen.
+Tegelijk stuurt de Kaartbuilder zijn collectie nu ook live door naar de shell
+(bij elke wijziging, niet enkel bij Drive-acties), die dat weer doorstuurt
+naar collectie.html — nieuwe/gewijzigde kaarten verschijnen zo meteen in de
+Collectie-tab, zonder herladen of opnieuw inloggen.
+
+Op 2026-08-18 uitgebreid: council.html kreeg een raaf-aankondiging (klikbaar
+icoontje met rood bolletje, vrij invulbaar tekstveld, door iedereen aan/uit
+te zetten) en een rudimentair forum (subfora + posts, iedereen mag alles).
+Beide gebruiken hetzelfde "onbekende velden blijven bewaard"-mechanisme als
+"hats": twee nieuwe top-level velden in wizards-cards.json, "ravenNotice"
+({text, active, updatedBy, updatedAt}) en "forum" ({subforums: [{id, name,
+createdBy, createdAt, posts: [{id, author, text, createdAt}]}]}) — geen
+wijziging aan de Google Apps Script-backend nodig. Wegschrijven gebeurt via
+dezelfde fetch-vers-op/merge/POST-cyclus als HatAvatar.saveToDrive: bij twee
+zowat-gelijktijdige wijzigingen wint gewoon wie het laatst schrijft (geen
+locking). Ververst enkel bij (her)inloggen of via de 🔄-knop in het forum,
+niet live tussen sessies.
+
+Daarnaast kreeg elke voice-zaal ook tekstchat, zoals in de Test-arena al
+bestond — maar in council.html loopt dat NIET via de Drive-json (die is niet
+real-time genoeg voor een druk gesprek), wel via de bestaande WebSocket-
+relay-server (dezelfde die ook de WebRTC-signalering doet), met een nieuw
+berichttype "room-chat" (+ "room-chat-history" voor laat-binnenkomers). Zie
+server.js en "relay server how to.md" voor het protocol.
+
+Op 2026-08-19 verholpen: twee bugs in de council.
+
+1) Deelnemers dupliceerden soms bij een reconnect (netwerk-hik): de server
+detecteerde een dode verbinding pas via de 30s-keepalive-ping, dus de oude
+"spook"-verbinding bleef tot dan meedraaien naast de nieuwe — zichtbaar als
+een dubbele deelnemer met een licht vervormde audiomix (twee audiopaden).
+Daarnaast kon een dubbel/race-conditie join-bericht van dezelfde client
+zichzelf als "bestaande peer" teruggegeven krijgen (existingPeers werd niet
+expliciet ge-exclude'd), wat een audio-loopback naar jezelf gaf. Fix in
+server.js: bij een join wordt elke oudere verbinding met dezelfde naam in de
+room nu meteen actief afgesloten (i.p.v. te wachten op de ping-timeout, die
+ook verlaagd is naar 10s), en existingPeers sluit zichzelf expliciet uit.
+Fix in council.html: bij het herverbinden van de lobby-socket worden eerst
+alle bestaande RTCPeerConnections opgeruimd vóór opnieuw gejoind wordt.
+
+2) Het forum verloor soms berichten (lost-update bij twee zowat-gelijktijdige
+schrijvingen) en was niet live tussen sessies (enkel verversen bij herlogin
+of de refresh-knop — een bewuste keuze die achteraf toch niet ideaal bleek).
+Fix in council.html: schrijfacties (subforum aanmaken/verwijderen, bericht
+plaatsen/verwijderen) gaan nu via saveDriveFieldsRetry — een fetch-merge-
+write die na het schrijven herleest en verifieert dat de wijziging er
+effectief in staat; zo niet (race condition, of Apps Script dat een 200 gaf
+zonder écht weg te schrijven), dan wordt de actie tot 3x herhaald, telkens
+herberekend tegen de dan-actuele data. Voor live-tussen-sessies is er een
+nieuw, niet-room-gebonden berichttype "forum-sync" bijgekomen in het
+WebSocket-relayprotocol: na elke geverifieerde schrijfactie stuurt de client
+de nieuwe forum-stand naar de server, die ze doorstuurt naar alle andere
+verbonden clients (en de laatste stand ook in-memory bijhoudt om aan net
+verbonden/herverbonden clients te geven — puur een "heb ik iets gemist"-
+duwtje, Drive blijft de bron van waarheid). De raaf-aankondiging bleef bij
+de oorspronkelijke saveDriveFields (laatste-schrijver-wint, geen live-sync)
+— dat is voor dat ene simpele veld nog steeds onschuldig genoeg, maar kan
+op dezelfde manier uitgebreid worden als gewenst.
+
+Op 2026-08-20 uitgebreid (kaartdatabase data-driven maken, stap 1):
+
+1) STATUS_LIST (card-data.js) uitgebreid van ["In Design","Afgewerkt"] naar
+["In Design","Playtesting","Balancing","Afgewerkt","Archived"]. Puur
+additief voor de dropdown in cardbuilder.html en het statusfilter in
+collectie.html — bestaande kaarten met status "In Design" of "Afgewerkt"
+blijven gewoon geldig.
+
+2) Drie nieuwe kaartvelden in normalizeCard: firstCreated, lastUpdated
+(beide timestamps, ms sinds epoch), lastUpdatedBy (naam). firstCreated
+wordt éénmalig gezet bij newCard()/duplicateCard(); lastUpdated/
+lastUpdatedBy worden bijgewerkt bij elke effectieve wijziging via
+syncFromForm() in cardbuilder.html. Getoond als klein leesbaar regeltje
+onderaan de "Tags & metadata"-sectie in de builder, en als tooltip op de
+kaart-thumbnails in de Collectie. Zelfde additief mechanisme als de
+automatisatie-uitbreiding van 2026-08-15: bestaande kaarten (van vóór deze
+wijziging) krijgen firstCreated/lastUpdated op null tot ze opnieuw bewerkt
+worden — geen historische data gegokt.
+
+3) Zoekbaarheid (card-filters.js, matchesFilters): de vrije-tekstzoek in
+de Collectie doorzoekt nu ook subtypes, rarity en lastUpdatedBy (naast de
+al bestaande velden). Twee nieuwe sorteeropties toegevoegd aan col-sort:
+"Laatst gewijzigd" en "Aangemaakt" (beide meest-recent-eerst). De lokale
+zoekbalk in cardbuilder.html zelf doorzoekt nu ook status, ontwerper,
+subtypes en tags (voorheen enkel naam/type/theme/location).

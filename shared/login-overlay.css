@@ -1,0 +1,58 @@
+/* =========================================================================
+   login-overlay.css — gedeeld login-scherm + drive-sync statusbalk.
+   Vereist bijhorende markup (zie drive-auth.js bovenaan voor de exacte HTML)
+   en de globale design-tokens uit :root (--panel, --gold, --gold-soft,
+   --ink-dim, --ink-light, --ink-muted, --bg, --border).
+   ========================================================================= */
+
+#login-overlay{
+  position:fixed; inset:0; z-index:9999;
+  display:flex; align-items:center; justify-content:center;
+  background: radial-gradient(ellipse at 50% 20%, #241d33 0%, #0e0c14 70%);
+  padding:20px;
+}
+#login-overlay.hidden{ display:none; }
+.login-card{
+  width:100%; max-width:360px;
+  background: var(--panel);
+  border:1px solid var(--gold);
+  border-radius:10px;
+  padding:28px 26px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  text-align:center;
+}
+.login-card .login-sigil{ font-size:26px; color: var(--gold); margin-bottom:4px; }
+.login-card h2{ font-family: var(--font-display); color: var(--gold-soft); margin:0 0 4px; font-size:20px; }
+.login-card .login-sub{ color: var(--ink-dim); font-size:12.5px; margin:0 0 18px; }
+.login-card label{
+  display:block; text-align:left; font-size:11px; color: var(--ink-dim);
+  text-transform:uppercase; letter-spacing:0.5px; margin:12px 0 5px;
+}
+.login-card input{
+  width:100%; background: var(--bg); border:1px solid var(--border); color: var(--ink-light);
+  padding:9px 10px; border-radius:5px; font-size:13.5px;
+}
+.login-card .btn{ width:100%; margin-top:18px; }
+#login-status{ margin-top:12px; font-size:12px; color: var(--ink-dim); min-height:16px; }
+#login-status.err{ color:#e79aaa; }
+#login-lastedit{ margin-top:4px; }
+#login-lastedit-text{ font-size:12.5px; color: var(--ink-muted); line-height:1.5; }
+
+/* ---------- Drive sync bar ---------- */
+#drive-bar{
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  padding:9px 24px;
+  border-bottom:1px solid var(--border);
+  background:#191423;
+}
+#drive-user-label{ font-size:12px; color: var(--ink-dim); margin-right:auto; }
+#drive-user-label b{ color: var(--gold-soft); font-weight:600; }
+#drive-status{ font-size:11.5px; color: var(--ink-dim); white-space:nowrap; }
+#drive-status.ok{ color:#8fbf8a; }
+#drive-status.err{ color:#e79aaa; }
+#drive-status.busy{ color: var(--gold-soft); }
+
+@media (max-width: 640px){
+  #drive-bar{ padding:9px 16px; }
+  #drive-user-label{ width:100%; margin-right:0; }
+}

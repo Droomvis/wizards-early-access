@@ -1,0 +1,16 @@
+{
+  "name": "Wizards — Mobile",
+  "short_name": "Wizards",
+  "description": "Kaartbuilder, collectie en deckbuilding — geoptimaliseerd voor mobiel gebruik.",
+  "start_url": "./Wizards_Mobile.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#15121c",
+  "theme_color": "#15121c",
+  "lang": "nl",
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

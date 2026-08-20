@@ -1,0 +1,3046 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wizards — Test-arena</title>
+<link rel="stylesheet" href="shared/login-overlay.css">
+<link rel="stylesheet" href="shared/card-render.css">
+<link rel="stylesheet" href="shared/hat-avatar.css">
+<style>
+  :root{
+    --bg: #15121c;
+    --bg-vignette: radial-gradient(ellipse at 50% -10%, #241d33 0%, #15121c 55%);
+    --panel: #1e1a29;
+    --panel-2: #241f33;
+    --border: #362c49;
+    --border-soft: #2a2338;
+    --ink-light: #d9d2e8;
+    --ink-muted: #9788b3;
+    --ink-dim: #6f6288;
+    --gold: #c9a24b;
+    --gold-soft: #e2c583;
+    --parchment: #efe6d1;
+    --parchment-dark: #e2d5b5;
+    --parchment-ink: #2c2318;
+    --parchment-chip: #b7a578;
+    --parchment-chip-border: #8f7d4f;
+
+    --c-wizard: #3d5a80;
+    --c-manifestation: #3f6b4a;
+    --c-incantation: #9c3b4f;
+    --c-hex: #5b4b8a;
+    --c-destiny: #b8933a;
+    --c-burden: #5c4a3a;
+
+    --stat-body: #8a3b3b;
+    --stat-mind: #3b5f8a;
+    --stat-soul: #6a4a8f;
+
+    --t-fire: #c1462b;
+    --t-earth: #6b5636;
+    --t-water: #2f6f8f;
+    --t-sky: #6fa8c9;
+    --t-shadow: #4a3a5c;
+    --t-light: #b9a666;
+
+    --font-display: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', serif;
+    --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: 'SF Mono', Consolas, Monaco, monospace;
+  }
+
+  *{ box-sizing: border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background: var(--bg-vignette);
+    color: var(--ink-light);
+    font-family: var(--font-ui);
+    min-height:100vh;
+  }
+
+  .btn{
+    font-family: var(--font-ui);
+    font-size:13px;
+    background: var(--panel-2);
+    color: var(--ink-light);
+    border:1px solid var(--border);
+    padding:8px 14px;
+    border-radius:5px;
+    cursor:pointer;
+    transition: border-color .15s, background .15s;
+    white-space:nowrap;
+  }
+  .btn:hover{ border-color: var(--gold); background:#2a2338; }
+  .btn.primary{ background: linear-gradient(180deg,#2f2743,#251f38); border-color: var(--gold); color: var(--gold-soft); }
+  .btn.primary:hover{ background:#352c4b; }
+  .btn.danger:hover{ border-color:#a1364a; color:#e79aaa; }
+  .btn.btn-subtle{ font-size:11.5px; padding:6px 10px; color: var(--ink-dim); opacity:0.75; }
+  .btn.btn-subtle:hover{ opacity:1; }
+  .btn:disabled{ opacity:0.4; cursor:not-allowed; }
+  .btn:disabled:hover{ border-color: var(--border); background: var(--panel-2); }
+  .btn.file-btn{ position:relative; overflow:hidden; display:inline-block; }
+  .btn.file-btn input[type=file]{
+    position:absolute; inset:0; opacity:0; cursor:pointer; font-size:200px;
+  }
+
+  #drive-bar{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:9px 24px; border-bottom:1px solid var(--border); background:#191423; }
+
+  /* ---- TEST-ARENA: setup ---- */
+  #arena-setup{ padding:24px; max-width:900px; margin:0 auto; }
+
+  #mp-panel{
+    margin-bottom:20px; padding:14px 16px;
+    background: var(--panel-2); border:1px solid var(--border); border-radius:8px;
+  }
+  #mp-panel .mp-title{ font-size:12px; text-transform:uppercase; letter-spacing:0.6px; color: var(--ink-dim); margin-bottom:10px; }
+  .mp-row{ display:flex; gap:20px; flex-wrap:wrap; margin-bottom:10px; }
+  .mp-row .field{ flex:1; min-width:180px; display:flex; flex-direction:column; gap:5px; }
+  .mp-row .field label{ font-size:11px; text-transform:uppercase; letter-spacing:0.6px; color: var(--ink-dim); }
+  .mp-row .field input{
+    background: var(--bg); border:1px solid var(--border); color: var(--ink-light);
+    padding:8px 10px; border-radius:5px; font-size:13px; font-family: var(--font-mono);
+  }
+  .mp-room-inputrow{ display:flex; gap:6px; }
+  .mp-room-inputrow input{ flex:1; }
+  .mp-row-actions{ align-items:center; gap:12px; }
+  .mp-status{ font-size:12px; color: var(--ink-dim); }
+  .mp-status.ok{ color:#8fbf8a; }
+  .mp-status.err{ color:#e79aaa; }
+  .mp-status.busy{ color: var(--gold-soft); }
+  #arena-toolbar .mp-status{ white-space:nowrap; }
+
+  #arena-setup-empty{ text-align:center; color: var(--ink-dim); padding:40px; }
+
+  .solo-toggle-row{
+    display:flex; align-items:center; gap:8px; margin-bottom:18px;
+    padding:9px 12px; background: var(--panel-2); border:1px solid var(--border-soft); border-radius:7px;
+    font-size:12.5px; color: var(--ink-muted);
+  }
+  .solo-toggle-row input{ width:15px; height:15px; accent-color: var(--gold); }
+  .solo-toggle-row label{ cursor:pointer; }
+
+  .seat-panel{
+    display:flex; gap:20px; margin-bottom:14px; padding:16px;
+    background: var(--panel); border:1px solid var(--border); border-radius:8px;
+  }
+  .seat-panel .field{ flex:1; display:flex; flex-direction:column; gap:5px; }
+  .seat-panel label{ font-size:11px; text-transform:uppercase; letter-spacing:0.6px; color: var(--ink-dim); }
+  .seat-panel input[type=text]{
+    background: var(--bg); border:1px solid var(--border); color: var(--ink-light);
+    padding:9px 10px; border-radius:5px; font-size:14px; font-family: var(--font-display);
+  }
+  .seat-panel select{
+    width:100%; background: var(--bg); border:1px solid var(--border); color: var(--ink-light);
+    padding:9px 10px; border-radius:5px; font-size:14px;
+  }
+  .seat-panel .deck-import-label{ font-size:11px; color: var(--ink-dim); margin-top:2px; }
+  .seat-panel .deck-import{ font-size:12px; color: var(--ink-muted); }
+  .seat-panel .seat-heading{ font-family: var(--font-display); color: var(--gold-soft); font-size:14px; margin-bottom:2px; }
+
+  .opp-panel{
+    margin-bottom:14px; padding:16px; border-radius:8px;
+    background: var(--panel-2); border:1px solid var(--border-soft);
+  }
+  .opp-panel .seat-heading{ font-family: var(--font-display); color: var(--gold-soft); font-size:14px; margin-bottom:8px; }
+  .opp-panel .opp-empty{ font-size:13px; color: var(--ink-dim); font-style:italic; }
+  .opp-panel .opp-info{ font-size:13.5px; color: var(--ink-light); }
+  .opp-panel .opp-info b{ color: var(--gold-soft); }
+
+  #arena-no-decks-hint{ font-size:13px; color: var(--ink-dim); margin-bottom:12px; }
+  #arena-totals{ margin:14px 0; font-size:13px; color: var(--ink-muted); display:flex; gap:24px; }
+  #arena-start-hint{ font-size:12.5px; color: var(--ink-dim); margin-top:8px; }
+
+  /* ---- TEST-ARENA: board ---- */
+  #arena-board{ padding:0; display:flex; flex-direction:column; }
+  #arena-toolbar{
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    padding:10px 20px; border-bottom:1px solid var(--border); background: var(--panel);
+    flex-shrink:0;
+  }
+  #arena-selected-info{ font-size:13px; color: var(--ink-muted); }
+  #arena-toolbar .spacer{ flex:1; }
+  #btn-zen{ border-color: var(--gold); color: var(--gold-soft); }
+
+  /* Zen/fullscreen: toolbar (incl. hint-tekst + mp-status) verdwijnt naar
+     boven het scherm, en glijdt terug in beeld bij mouseover van een dunne
+     strook helemaal bovenaan (of bij hover van de toolbar zelf, zodat je
+      'm ook kan vasthouden). */
+  #zen-hover-zone{ display:none; }
+  body.zen-mode #zen-hover-zone{
+    display:block; position:fixed; top:0; left:0; right:0; height:16px; z-index:5002;
+  }
+  body.zen-mode #arena-toolbar{
+    position:fixed; top:0; left:0; right:0; z-index:5001;
+    transform: translateY(-100%);
+    transition: transform .18s ease;
+  }
+  body.zen-mode #zen-hover-zone:hover + #arena-toolbar,
+  body.zen-mode #arena-toolbar:hover{
+    transform: translateY(0);
+  }
+
+  /* Beurt-highlight + END TURN-knop */
+  .arena-player.turn-active{ background: rgba(226,197,131,0.05); box-shadow: inset 3px 0 0 var(--gold); }
+  .end-turn-btn{ font-size:10.5px; padding:3px 10px; letter-spacing:0.4px; font-weight:bold; }
+  .end-turn-btn:disabled{ opacity:0.35; }
+
+  /* Hand: markeert welke kaarten bij END TURN automatisch behouden blijven
+     (de eerste t.e.m. Mind-stat, in hand-volgorde) */
+  .arena-chip.chip-hand.hand-keep{ box-shadow: 0 0 0 2px var(--gold) inset; }
+
+  /* Stack: een kaart-op-de-stack toont naast de fiche ook een target-label
+     en een Resolve-knop. Enkel de bovenste (=laatst toegevoegde, LIFO)
+     kaart is "live"; oudere kaarten wachten met een uitgeschakelde knop. */
+  .arena-stack-card{ display:flex; flex-direction:column; align-items:center; gap:3px; flex-shrink:0; }
+  .stack-card-info{
+    font-size:8.5px; color: var(--ink-muted); text-align:center; line-height:1.3;
+    width:114px; overflow:hidden;
+  }
+  .stack-target-arrow{ color: var(--gold-soft); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .stack-caster-label{ color: var(--ink-dim); }
+  .stack-resolve-btn{ font-size:9.5px; padding:2px 10px; font-weight:bold; }
+  .stack-resolve-btn:disabled{ opacity:0.35; }
+
+  body.zen-mode{ overflow:hidden; }
+  body.zen-mode #drive-bar{ display:none !important; }
+  body.zen-mode #view-arena{
+    position:fixed; inset:0; z-index:5000; background: var(--bg-vignette);
+    display:flex; flex-direction:column;
+  }
+  body.zen-mode #arena-board{ flex:1; min-height:0; }
+  body.zen-mode #arena-players{ flex:1; min-height:0; }
+
+  #view-arena{ display:flex; flex-direction:column; min-height:calc(100vh - 46px); }
+  #arena-board{ min-height: calc(100vh - 160px); }
+
+  #arena-players{ display:flex; flex-direction:column; flex:1; min-height:0; }
+
+  .arena-fountain-strip{
+    flex-shrink:0; height:172px; position:relative;
+    background: var(--panel-2); border-top:1px solid var(--border-soft); border-bottom:1px solid var(--border-soft);
+    display:flex; align-items:stretch; justify-content:center;
+    gap:10px; padding:8px 10px;
+    overflow:hidden;
+  }
+  .arena-fountain-svg{
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:150px; height:150px; color: var(--ink-dim); opacity:0.16;
+    pointer-events:none;
+  }
+  .arena-stack-wrap{
+    flex:1 1 auto; min-width:0; max-width:1000px; position:relative;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .arena-stack-zone{
+    flex:1; min-width:0; max-width:1000px; height:100%; position:relative; z-index:1;
+    display:flex; align-items:center; justify-content:center; flex-wrap:wrap;
+    align-content:center;
+    gap:4px; padding:6px 10px;
+    overflow-y:auto;
+  }
+  .arena-stack-zone .stack-empty-msg{
+    font-size:10.5px; text-transform:uppercase; letter-spacing:0.8px; color: var(--ink-dim);
+    pointer-events:none;
+  }
+  .arena-stack-zone.drop-hover{
+    outline:2px dashed var(--gold); outline-offset:-4px;
+    background: rgba(226,197,131,0.08);
+  }
+
+  /* Specifieke kaart die als target dient tijdens een cast-drag (incl. een
+     kaart die al op de stack ligt) — los van de outline op de hele zone. */
+  .arena-chip.cast-target-hover{
+    outline:2px solid var(--gold); outline-offset:2px;
+    box-shadow: 0 0 0 4px rgba(226,197,131,0.18);
+  }
+
+  .arena-side-panel{
+    flex:1 1 200px; min-width:110px; max-width:260px; height:100%;
+    display:flex; flex-direction:column; min-height:0;
+  }
+  .arena-side-panel .side-panel-body{
+    flex:1; min-height:0; overflow-y:auto;
+    font-size:10.5px; line-height:1.42; color: var(--ink-muted);
+    background: rgba(0,0,0,0.12); border:1px solid var(--border-soft); border-radius:6px;
+    padding:4px 6px;
+  }
+  .arena-side-panel .side-panel-body .log-empty,
+  .arena-side-panel .side-panel-body .chat-empty{
+    color: var(--ink-dim); font-style:italic;
+  }
+  .arena-side-panel .log-entry{ margin:0 0 3px; }
+  .arena-side-panel .log-entry .log-time{ color: var(--ink-dim); margin-right:4px; }
+  .arena-side-panel .chat-entry{ margin:0 0 4px; word-break:break-word; }
+  .arena-side-panel .chat-entry .chat-time{ color: var(--ink-dim); margin-right:4px; font-size:10px; }
+  .arena-side-panel .chat-entry .chat-sender{ color: var(--gold-soft); font-weight:600; }
+  .arena-side-panel.chat-panel{ gap:3px; }
+  .arena-chat-inputrow{ flex-shrink:0; display:flex; gap:4px; margin-top:3px; }
+  .arena-chat-inputrow input{ flex:1; min-width:0; font-size:10.5px; padding:3px 6px; }
+  .arena-chat-inputrow button{ flex-shrink:0; font-size:10.5px; padding:3px 7px; }
+
+  @media (max-width: 760px){
+    .arena-side-panel{ display:none; }
+  }
+
+  .chip-counters{
+    position:absolute; top:50%; right:0; transform:translate(50%,-50%);
+    display:flex; flex-direction:column; gap:2px; z-index:2;
+  }
+  .chip-counter{
+    width:15px; height:15px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:8.5px; font-weight:bold; font-family: var(--font-mono);
+    box-shadow:0 1px 3px rgba(0,0,0,0.6);
+  }
+  .chip-counter.dot-white{ background:#f1ece0; border:1.5px solid #a89a78; color:#2c2318; }
+  .chip-counter.dot-black{ background:#17131c; border:1.5px solid #4a4258; color:#e8e0d0; }
+
+  .chip-stat-circles{
+    position:absolute; left:0; right:0; bottom:0; transform:translateY(50%);
+    display:flex; justify-content:center; gap:4px; z-index:2; pointer-events:none;
+  }
+  .chip-stat-circle{
+    width:15px; height:15px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:8.5px; font-weight:bold; font-family: var(--font-mono);
+    color: var(--parchment); border:1.5px solid rgba(0,0,0,0.45);
+    box-shadow:0 1px 3px rgba(0,0,0,0.6);
+  }
+  .chip-stat-circle.stat-body{ background: var(--stat-body); }
+  .chip-stat-circle.stat-mind{ background: var(--stat-mind); }
+  .chip-stat-circle.stat-soul{ background: var(--stat-soul); }
+
+  .inplay-col .zone-cards{ row-gap:12px; column-gap:14px; }
+  .arena-player{
+    flex:1 1 0; min-height:0; display:flex; flex-direction:column;
+    border-bottom:2px solid var(--border); overflow:hidden;
+  }
+  .arena-player:last-child{ border-bottom:none; }
+
+  .p-main{ order:2; flex:1; min-height:0; display:flex; gap:10px; padding:8px 12px; }
+  .p-hand{ order:1; flex-shrink:0; min-height:100px; padding:8px 16px;
+    display:flex; align-items:center; gap:16px;
+    background:#17131f; border-bottom:1px solid var(--border-soft); }
+  .arena-player.mirror-top .p-main{ order:1; }
+  .arena-player.mirror-top .p-hand{ order:2; border-bottom:none; border-top:1px solid var(--border-soft); }
+
+  .p-hand-left{ flex:0 0 auto; display:flex; align-items:center; gap:10px; }
+  .p-hand-name{ font-family: var(--font-display); font-size:15px; color: var(--gold-soft); white-space:nowrap; }
+
+  /* Klein tandwiel-menu vlak onder de spelernaam: test-instellingen die
+     gericht bugs helpen opsporen (punt 3 = kost auto-betalen, punt 4 =
+     legaliteit van een cast) los aan/uit kunnen zetten — geldt voor de hele
+     match, niet per speler; het tandwiel staat gewoon bij beide spelers. */
+  .p-name-col{ display:flex; flex-direction:column; align-items:flex-start; gap:3px; position:relative; }
+  .player-settings-gear{
+    font-size:11px; padding:1px 6px; line-height:1.5; color: var(--ink-dim);
+    background:transparent; border:1px solid var(--border-soft); border-radius:4px; cursor:pointer;
+  }
+  .player-settings-gear:hover, .player-settings-gear.menu-open{ color: var(--gold-soft); border-color: var(--gold); }
+  .player-settings-popover{
+    position:absolute; top:100%; left:0; margin-top:5px; z-index:50; width:250px;
+    background: var(--panel); border:1px solid var(--border); border-radius:8px;
+    padding:11px 13px; box-shadow:0 10px 24px rgba(0,0,0,0.55);
+    display:flex; flex-direction:column; gap:9px; cursor:default;
+  }
+  .player-settings-popover .settings-title{
+    font-size:10.5px; text-transform:uppercase; letter-spacing:0.5px; color: var(--ink-dim);
+  }
+  .player-settings-popover label{
+    display:flex; align-items:flex-start; gap:7px; font-size:12px; color: var(--ink-light);
+    cursor:pointer; line-height:1.4;
+  }
+  .player-settings-popover input[type=checkbox]{ margin-top:2px; accent-color: var(--gold); flex-shrink:0; }
+  .player-settings-popover .settings-hint{ font-size:10px; color: var(--ink-dim); line-height:1.35; }
+
+  .p-hand-center{ flex:1; min-width:0; }
+  .p-hand-main{ width:100%; max-width:940px; margin:0 auto; }
+
+  .p-hand-right{ flex:0 0 auto; display:flex; flex-direction:column; gap:5px; }
+
+  .p-avatar-slot{
+    position:relative; width:56px; height:76px; flex-shrink:0;
+    border-radius:7px; overflow:hidden; border:2px solid var(--border); cursor:pointer;
+    background: var(--panel-2); display:flex; align-items:center; justify-content:center;
+    font-size:9px; color: var(--ink-dim); text-align:center; line-height:1.3; padding:4px;
+  }
+  .p-avatar-slot:hover{ border-color: var(--gold); }
+  .p-avatar-slot img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .p-avatar-slot .remove-avatar-btn{
+    position:absolute; top:2px; right:2px; width:16px; height:16px; border-radius:50%;
+    background:#1b1420; border:1px solid var(--gold); color: var(--gold-soft);
+    font-size:10px; line-height:1; display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+
+  .counter-box{
+    display:flex; align-items:center; gap:6px; background: var(--panel-2);
+    border:1px solid var(--border); border-radius:7px; padding:5px 9px;
+  }
+  .counter-box .c-icon{ font-size:16px; width:18px; text-align:center; flex-shrink:0; }
+  .counter-box .c-label{ font-size:11px; color: var(--ink-dim); text-transform:uppercase; letter-spacing:0.3px; min-width:40px; }
+  .counter-box button{
+    width:21px; height:21px; border-radius:5px; border:1px solid var(--border); background: var(--panel);
+    color: var(--ink-light); cursor:pointer; font-size:13px; line-height:1; padding:0; flex-shrink:0;
+  }
+  .counter-box button:hover{ border-color: var(--gold); }
+  .counter-box input{
+    width:34px; text-align:center; background: var(--bg); border:1px solid var(--border);
+    color: var(--ink-light); border-radius:4px; font-size:13px; font-weight:bold; padding:3px 1px;
+  }
+
+  .counter-box.counter-box-inplay{
+    justify-content:center; gap:8px; margin:4px 0; padding:6px 8px;
+    background: var(--panel); border:1px solid var(--border); flex-shrink:0;
+  }
+  .counter-box.counter-box-inplay .c-icon{ font-size:19px; width:auto; }
+  .counter-box.counter-box-inplay .c-label{ min-width:auto; font-size:11px; }
+  .counter-box.counter-box-inplay input{ width:42px; font-size:16px; }
+  .counter-box.counter-box-inplay button{ width:24px; height:24px; font-size:15px; }
+
+  .counter-box.counter-box-actions .c-icon,
+  .counter-box.counter-box-actions .c-label{ cursor:pointer; }
+  .counter-box.counter-box-actions .c-icon:hover,
+  .counter-box.counter-box-actions .c-label:hover{ color: var(--gold-soft); }
+
+  /* Status-badge: puur informatief, herrekend uit het schild-getal — geen
+     eigen state, geen gevolgen. Toont Vulnerable/Confused/Forlorn zodra het
+     bijhorende schild op 0 staat, cfr. regels ("Once Vulnerable/Confused/
+     Forlorn, the Wizard is open to attacks from that respective type"). */
+  .shield-status-badge{
+    font-size:8.5px; text-transform:uppercase; letter-spacing:0.4px;
+    color:#e79aaa; border:1px solid #7a3345; background:rgba(122,51,69,0.25);
+    border-radius:4px; padding:1px 5px; margin-left:2px; white-space:nowrap;
+  }
+
+  .p-wizard-stats{ display:flex; flex-direction:column; gap:4px; flex-shrink:0; }
+  .counter-box.wizardstat-box{ gap:4px; padding:3px 5px; border-radius:5px; }
+  .counter-box.wizardstat-box .c-label{ font-size:9.5px; min-width:26px; letter-spacing:0.2px; }
+  .counter-box.wizardstat-box button{ width:17px; height:17px; font-size:11px; border-radius:4px; }
+  .counter-box.wizardstat-box input{ width:26px; font-size:11px; padding:2px 1px; }
+
+  .p-sidebar{ flex:0 0 220px; display:flex; flex-direction:column; gap:8px; }
+  .p-sidebar .mini-zone-label{
+    font-size:9.5px; text-transform:uppercase; letter-spacing:0.6px; color: var(--ink-dim);
+    display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;
+  }
+  .p-sidebar .mini-zone-label button{ font-size:9.5px; padding:2px 5px; }
+
+  .deck-pile{
+    width:92px; height:128px; border-radius:7px; flex-shrink:0;
+    background: linear-gradient(135deg, #2a2338, #1c1726);
+    border:2px solid var(--border); display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:4px; cursor:pointer;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+  }
+  .deck-pile:hover{ border-color: var(--gold); }
+  .deck-pile .sigil2{ font-size:16px; color: var(--gold); }
+  .deck-pile .count{ font-size:18px; font-weight:bold; color: var(--ink-light); font-family: var(--font-mono); }
+  .deck-pile .lbl{ font-size:8.5px; color: var(--ink-dim); text-transform:uppercase; letter-spacing:0.4px; }
+
+  .p-inplay{
+    flex:1; min-width:0; display:flex; gap:8px;
+    background: var(--panel); border:1px solid var(--border-soft); border-radius:8px;
+    padding:8px;
+  }
+  .inplay-col{
+    flex:1; min-width:0; display:flex; flex-direction:column;
+    background: var(--panel-2); border:1px solid var(--border-soft); border-radius:6px;
+    padding:6px; overflow-y:auto;
+  }
+  .inplay-col-head{
+    font-size:10px; text-transform:uppercase; letter-spacing:0.7px; color: var(--gold);
+    margin-bottom:6px; display:flex; justify-content:space-between; flex-shrink:0;
+  }
+  .inplay-col-head .zc{ color: var(--ink-dim); }
+  .inplay-col .zone-cards{ flex:1; align-content:flex-start; }
+
+  .p-hand .arena-zone-head{ display:flex; justify-content:space-between; margin-bottom:4px; }
+  .p-hand .zt{ font-size:10px; text-transform:uppercase; letter-spacing:0.7px; color: var(--gold); }
+  .p-hand .zc{ font-size:10px; color: var(--ink-dim); }
+  .p-hand .zone-cards{ flex-wrap:nowrap; overflow-x:auto; overflow-y:visible; padding-bottom:2px; }
+
+  .zone-cards{ display:flex; flex-wrap:wrap; align-items:flex-start; gap:4px; }
+  .zone-empty-msg{ font-size:11px; color: var(--ink-dim); padding:6px 2px; }
+
+  .arena-chip{
+    position:relative; cursor:grab; border-radius:6px;
+    background: var(--parchment-chip); border:1px solid var(--parchment-chip-border);
+    border-left:4px solid var(--type-color, var(--gold));
+    padding:5px 8px; display:flex; flex-direction:column; justify-content:center; gap:2px;
+    transition: transform .1s, box-shadow .1s; flex-shrink:0;
+    touch-action:none; user-select:none;
+  }
+  .arena-chip:hover{ transform: translateY(-2px); z-index:6; box-shadow:0 4px 10px rgba(0,0,0,0.4); }
+  .arena-chip.dragging-source{ opacity:0.35; }
+  .arena-chip.tapped{ opacity:0.5; }
+
+  /* Face-down rugkantje voor de hand van de tegenstander (arena.settings.
+     hideOpponentHand) — geen kaartinfo, geen drag/hover, enkel zichtbaar
+     dat er een kaart ligt. Zelfde afmetingen als chip-hand zodat de hand-
+     strook niet van layout verspringt t.o.v. de face-up weergave. */
+  .arena-chip.chip-facedown{
+    cursor:default; align-items:center; justify-content:center;
+    background: linear-gradient(135deg, #2a2338, #1c1726);
+    border-color: var(--border); border-left-color: var(--gold);
+  }
+  .arena-chip.chip-facedown:hover{ transform:none; box-shadow:none; }
+  .arena-chip.chip-facedown .facedown-sigil{ font-size:16px; color: var(--gold); opacity:0.55; }
+
+  .arena-drag-ghost{
+    position:fixed; z-index:7000; pointer-events:none; margin:0;
+    opacity:0.94; cursor:grabbing;
+    box-shadow: 0 14px 28px rgba(0,0,0,0.55);
+    transform: rotate(-2deg) scale(1.04);
+  }
+
+  [data-dropzone].drop-hover{
+    outline:2px dashed var(--gold); outline-offset:2px;
+    background: rgba(226,197,131,0.10); border-radius:6px;
+  }
+  .deck-pile.drop-hover{ border-color: var(--gold); box-shadow:0 0 0 2px rgba(226,197,131,0.35); }
+  .deck-bottom-drop{
+    margin-top:6px; padding:5px 4px; text-align:center;
+    font-size:9.5px; color: var(--ink-dim); text-transform:uppercase; letter-spacing:0.3px;
+    border:1px dashed var(--border); border-radius:5px;
+  }
+  .deck-bottom-drop.drop-hover{ border-color: var(--gold); color: var(--gold-soft); background: rgba(226,197,131,0.08); }
+
+  .p-sidebar-header-row{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .p-sidebar-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:6px; }
+  .p-sidebar-grid .deck-bottom-drop{ margin-top:0; }
+
+  .discard-pile-box{
+    width:92px; height:128px; border-radius:7px;
+    background: linear-gradient(135deg, #2a2338, #1c1726);
+    border:2px solid var(--border); display:flex;
+    align-items:center; justify-content:center; padding:6px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4); cursor:pointer; overflow:hidden;
+  }
+  .discard-pile-box:hover{ border-color: var(--gold); }
+  .discard-pile-box .arena-chip{ width:100%; cursor:pointer; }
+
+  .pile-summary-slot{ cursor:pointer; }
+  .pile-summary-slot:hover{ border-color: var(--gold); color: var(--gold-soft); background: rgba(226,197,131,0.08); }
+  .arena-chip.chip-md{ width:148px; min-height:42px; }
+  .arena-chip.chip-hand{ width:114px; min-height:42px; }
+  .arena-chip.chip-inplay{
+    border-color:#000; border-left-color: var(--type-color, var(--gold));
+    box-shadow: 0 1px 5px rgba(0,0,0,0.5);
+  }
+  .arena-chip.chip-inplay:hover{ box-shadow: 0 4px 10px rgba(0,0,0,0.55); }
+  .arena-chip.chip-sm{ width:92px; min-height:28px; padding:3px 6px; }
+  .chip-name{
+    font-family: var(--font-display); font-size:12.5px; color: var(--parchment-ink);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .chip-sm .chip-name{ font-size:10px; }
+  .chip-meta{ font-size:9.5px; color: var(--parchment-ink); opacity:0.65; display:flex; justify-content:space-between; gap:4px; }
+  .chip-sm .chip-meta{ font-size:8px; }
+  .chip-tapped-tag{
+    position:absolute; top:1px; right:3px; font-size:8px; color: #2c2318;
+    background: rgba(255,255,255,0.35); border-radius:4px; padding:0 3px;
+    font-family: var(--font-mono); letter-spacing:0.3px;
+  }
+
+  #arena-hover-preview{
+    position:fixed; z-index:6000; pointer-events:none; display:none;
+    filter: drop-shadow(0 12px 26px rgba(0,0,0,0.6));
+  }
+
+  #arena-zoom-overlay{
+    position:fixed; inset:0; z-index:8000; display:none;
+    align-items:center; justify-content:center;
+    background: rgba(10,8,14,0.78);
+    backdrop-filter: blur(2px);
+    padding:24px;
+  }
+  #arena-zoom-overlay.open{ display:flex; }
+  .arena-zoom-content{
+    display:flex; align-items:center; gap:26px; max-width:100%;
+    flex-wrap:wrap; justify-content:center;
+  }
+  .arena-zoom-content .card-frame{
+    width:300px; min-height:418px; flex-shrink:0;
+    filter: drop-shadow(0 20px 40px rgba(0,0,0,0.65));
+  }
+  .arena-zoom-tapped-tag{
+    position:absolute; top:10px; right:10px; font-size:11px; color:#2c2318;
+    background: rgba(255,255,255,0.55); border-radius:5px; padding:2px 7px;
+    font-family: var(--font-mono); letter-spacing:0.5px; font-weight:bold;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+  .arena-zoom-panel{
+    width:230px; flex-shrink:0; display:flex; flex-direction:column; gap:14px;
+    background: var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:16px; box-shadow: 0 14px 30px rgba(0,0,0,0.5);
+  }
+  .arena-zoom-panel .zoom-section-label{
+    font-size:10px; text-transform:uppercase; letter-spacing:0.8px; color: var(--ink-dim);
+    margin-bottom:6px;
+  }
+  .arena-zoom-panel .zoom-tap-btn{ width:100%; padding:10px 8px; font-size:13px; font-weight:bold; }
+  .arena-zoom-counter-row{
+    display:flex; align-items:center; gap:8px; background: var(--panel-2);
+    border:1px solid var(--border); border-radius:7px; padding:6px 8px;
+  }
+  .arena-zoom-counter-row .zoom-dot{
+    width:18px; height:18px; border-radius:50%; flex-shrink:0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  }
+  .arena-zoom-counter-row .zoom-dot.dot-white{ background:#f1ece0; border:2px solid #a89a78; }
+  .arena-zoom-counter-row .zoom-dot.dot-black{ background:#17131c; border:2px solid #4a4258; }
+  .arena-zoom-counter-row .zoom-c-label{ font-size:11.5px; color: var(--ink-light); flex:1; }
+  .arena-zoom-counter-row button{
+    width:26px; height:26px; border-radius:5px; border:1px solid var(--border); background: var(--panel);
+    color: var(--ink-light); cursor:pointer; font-size:15px; line-height:1; padding:0; flex-shrink:0;
+  }
+  .arena-zoom-counter-row button:hover{ border-color: var(--gold); }
+  .arena-zoom-counter-row .zoom-c-value{
+    width:26px; text-align:center; font-family: var(--font-mono); font-size:14px;
+    font-weight:bold; color: var(--ink-light); flex-shrink:0;
+  }
+  .arena-zoom-panel .zoom-actions{ display:flex; flex-direction:column; gap:8px; margin-top:auto; }
+  .arena-zoom-panel .zoom-hint{ font-size:11px; color: var(--ink-dim); line-height:1.4; }
+  .arena-zoom-close{
+    position:absolute; top:10px; right:14px; background:none; border:none;
+    color: var(--ink-dim); font-size:22px; cursor:pointer; line-height:1;
+  }
+  .arena-zoom-close:hover{ color: var(--gold-soft); }
+  @media (max-width: 640px){
+    .arena-zoom-content{ flex-direction:column; }
+    .arena-zoom-content .card-frame{ width:240px; min-height:334px; }
+    .arena-zoom-panel{ width:100%; max-width:300px; }
+  }
+
+  #arena-choice-overlay{
+    position:fixed; inset:0; z-index:8000; display:none;
+    align-items:center; justify-content:center;
+    background: rgba(10,8,14,0.78);
+    backdrop-filter: blur(2px);
+    padding:24px;
+  }
+  #arena-choice-overlay.open{ display:flex; }
+  .arena-choice-box{
+    position:relative; width:280px; max-width:100%; max-height:80vh;
+    display:flex; flex-direction:column;
+    background: var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:16px; box-shadow: 0 14px 30px rgba(0,0,0,0.5);
+  }
+  .arena-choice-title{ font-family: var(--font-display); font-size:14px; color: var(--gold-soft); margin:0 22px 12px 0; }
+  .arena-choice-list{ display:flex; flex-direction:column; gap:6px; overflow-y:auto; }
+  .arena-choice-opt{
+    display:block; width:100%; text-align:left; padding:9px 11px; background: var(--panel-2);
+    border:1px solid var(--border); border-radius:7px; color: var(--ink-light); cursor:pointer; font-size:13px;
+  }
+  .arena-choice-opt:hover{ border-color: var(--gold); color: var(--gold-soft); }
+  .arena-choice-empty{ padding:9px 2px; font-size:12px; color: var(--ink-dim); }
+  .arena-choice-close{
+    position:absolute; top:10px; right:14px; background:none; border:none;
+    color: var(--ink-dim); font-size:22px; cursor:pointer; line-height:1;
+  }
+  .arena-choice-close:hover{ color: var(--gold-soft); }
+
+  /* Eigen "notice"-popup i.p.v. de native browser alert() — een alert()
+     breekt namelijk fullscreen/zen-mode af (de browser sluit fullscreen
+     automatisch zodra een alert/confirm/prompt verschijnt) en oogt als een
+     systeemmelding, wat de sfeer breekt. Zelfde bouwstijl als de andere
+     overlays hierboven (child van #view-arena, dus blijft binnen fullscreen). */
+  #arena-notice-overlay{
+    position:fixed; inset:0; z-index:9000; display:none;
+    align-items:center; justify-content:center;
+    background: rgba(10,8,14,0.78);
+    backdrop-filter: blur(2px);
+    padding:24px;
+  }
+  #arena-notice-overlay.open{ display:flex; }
+  .arena-notice-box{
+    position:relative; width:320px; max-width:100%;
+    background: var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:18px 20px 20px; box-shadow: 0 14px 30px rgba(0,0,0,0.5);
+  }
+  .arena-notice-title{ font-family: var(--font-display); font-size:14px; color: var(--gold-soft); margin:0 22px 8px 0; }
+  .arena-notice-body{ font-size:13px; color: var(--ink-light); line-height:1.45; margin:0 0 16px; }
+  .arena-notice-ok-btn{ width:100%; }
+  .arena-notice-close{
+    position:absolute; top:10px; right:14px; background:none; border:none;
+    color: var(--ink-dim); font-size:22px; cursor:pointer; line-height:1;
+  }
+  .arena-notice-close:hover{ color: var(--gold-soft); }
+
+  #arena-pile-overlay{
+    position:fixed; inset:0; z-index:7500; display:none;
+    align-items:center; justify-content:center;
+    background: rgba(10,8,14,0.72);
+    padding:24px;
+  }
+  #arena-pile-overlay.open{ display:flex; }
+  .arena-pile-box{
+    position:relative; width:420px; max-width:100%; max-height:80vh;
+    display:flex; flex-direction:column; gap:12px;
+    background: var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:16px; box-shadow: 0 14px 30px rgba(0,0,0,0.5);
+  }
+  .arena-pile-title{ font-family: var(--font-display); font-size:14px; color: var(--gold-soft); margin:0 22px 0 0; }
+  .arena-pile-grid{ display:flex; flex-wrap:wrap; align-content:flex-start; gap:5px; overflow-y:auto; min-height:32px; }
+
+  @media (max-width: 900px){
+    .p-main{ flex-direction:column; }
+    .p-sidebar{ flex-direction:row; flex:0 0 auto; width:100%; }
+    .p-inplay{ flex-direction:column; }
+    .seat-panel{ flex-direction:column; gap:12px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="login-overlay">
+  <div class="login-card">
+    <div class="login-sigil">⟡</div>
+    <h2>Wizards — Test-arena</h2>
+    <p class="login-sub">Log in om verder te gaan.</p>
+
+    <div id="login-form-fields">
+      <label for="login-username">Naam</label>
+      <input type="text" id="login-username" placeholder="Je naam (vrij te kiezen)" autocomplete="off">
+      <label for="login-password">Wachtwoord</label>
+      <input type="password" id="login-password" placeholder="Wachtwoord voor de Drive-sync" autocomplete="off">
+      <button class="btn primary" id="btn-login">Inloggen</button>
+    </div>
+
+    <div id="login-status"></div>
+
+    <div id="login-lastedit" style="display:none;">
+      <p id="login-lastedit-text"></p>
+      <button class="btn primary" id="btn-login-continue">Verdergaan</button>
+    </div>
+  </div>
+</div>
+
+<div id="drive-bar">
+  <span id="drive-user-label"></span>
+  <span id="drive-status"></span>
+</div>
+
+<div id="view-arena">
+  <div id="arena-setup">
+    <div id="mp-panel">
+      <div class="mp-title">Samen spelen (LAN of internet)</div>
+      <div class="mp-row">
+        <div class="field">
+          <label for="mp-server-url">Server-adres (ws:// of wss://)</label>
+          <input type="text" id="mp-server-url" placeholder="ws://192.168.1.23:8080">
+        </div>
+        <div class="field">
+          <label for="mp-room-code">Roomcode (allebei dezelfde)</label>
+          <div class="mp-room-inputrow">
+            <input type="text" id="mp-room-code" placeholder="bv. VUUR12">
+            <button type="button" class="btn btn-subtle" id="mp-btn-random-room" title="Genereer willekeurige roomcode">🎲</button>
+          </div>
+        </div>
+      </div>
+      <div class="mp-row mp-row-actions">
+        <button type="button" class="btn primary" id="mp-btn-connect-setup">Verbind</button>
+        <button type="button" class="btn danger" id="mp-btn-disconnect-setup" style="display:none;">Verbreek verbinding</button>
+        <span id="mp-status-setup" class="mp-status">Niet verbonden — verbind om samen te spelen, of gebruik hieronder de solo-test.</span>
+      </div>
+    </div>
+
+    <div id="arena-setup-empty" style="display:none;">Je hebt nog geen kaarten in de collectie. Maak eerst kaarten aan in het Kaartbuilder-bestand — die worden automatisch gesynchroniseerd zodra je hier inlogt.</div>
+
+    <div id="arena-setup-content">
+      <div class="solo-toggle-row">
+        <input type="checkbox" id="solo-toggle">
+        <label for="solo-toggle">🧪 Solo-test: ik stel zelf beide spelers in (geen tegenstander nodig)</label>
+      </div>
+
+      <div id="my-seat-panel" class="seat-panel">
+        <div class="field">
+          <div class="seat-heading">Mijn speler</div>
+        </div>
+      </div>
+      <div class="seat-panel">
+        <div class="field">
+          <label for="my-name">Naam</label>
+          <input type="text" id="my-name" value="">
+        </div>
+        <div class="field">
+          <label for="my-deck-select">Mijn deck</label>
+          <select id="my-deck-select"><option value="">— geen deck geselecteerd —</option></select>
+          <label for="my-deck-import" class="deck-import-label">of laad een deck-bestand (.json)</label>
+          <input type="file" id="my-deck-import" class="deck-import" accept="application/json,.json">
+        </div>
+      </div>
+
+      <div id="opp-panel" class="opp-panel" style="display:none;">
+        <div class="seat-heading">Tegenstander</div>
+        <div id="opp-panel-body" class="opp-empty">Wachten op tegenstander…</div>
+      </div>
+
+      <div id="solo-p2-panel" class="seat-panel" style="display:none;">
+        <div class="field">
+          <label for="p2-name">Naam speler 2</label>
+          <input type="text" id="p2-name" value="Speler 2">
+        </div>
+        <div class="field">
+          <label for="p2-deck-select">Deck speler 2</label>
+          <select id="p2-deck-select"><option value="">— geen deck geselecteerd —</option></select>
+          <label for="p2-deck-import" class="deck-import-label">of laad een deck-bestand (.json)</label>
+          <input type="file" id="p2-deck-import" class="deck-import" accept="application/json,.json">
+        </div>
+      </div>
+
+      <div id="arena-no-decks-hint" style="display:none;">Je hebt nog geen decks. Maak er een aan in het Kaartbuilder-bestand (tabblad "Decks") en exporteer ze als .json, of laad hierboven meteen een deck-bestand in.</div>
+
+      <div id="arena-totals">
+        <span id="arena-total-1"></span>
+        <span id="arena-total-2"></span>
+      </div>
+
+      <div class="solo-toggle-row" id="starter-row" style="justify-content:flex-start; gap:10px;">
+        <label for="starter-select" style="cursor:default;">Wie begint?</label>
+        <select id="starter-select">
+          <option value="me">Ik</option>
+          <option value="opponent">Tegenstander / Speler 2</option>
+        </select>
+      </div>
+
+      <button class="btn primary" id="btn-start-arena">Start test-arena</button>
+      <div id="arena-start-hint"></div>
+    </div>
+  </div>
+
+  <div id="arena-board" style="display:none;">
+    <div id="zen-hover-zone"></div>
+    <div id="arena-toolbar">
+      <div id="arena-selected-info">Sleep een kaart uit je hand naar een In Play-zone, een specifieke kaart, of een kaart die al op de stack ligt om ze te casten — ze komt op de stack met een target, tot iedereen Resolve klikt. Sleep binnen je hand om te herschikken (eerste kaarten t.e.m. Mind-stat blijven bij END TURN). Klik (zonder te slepen) om te tappen/readyen.</div>
+      <div class="spacer"></div>
+      <span id="mp-status-board" class="mp-status">Niet verbonden.</span>
+      <button type="button" class="btn btn-subtle" id="mp-btn-disconnect-board" style="display:none;">Verbreek</button>
+      <button class="btn" id="btn-arena-flip" title="Wissel welke speler bovenaan/onderaan staat, voor jouw eigen point of view">🔄 Scherm flippen</button>
+      <button class="btn" id="btn-zen">⛶ Volledig scherm</button>
+      <button class="btn" id="btn-end-arena">Nieuwe wedstrijd / instellingen</button>
+    </div>
+    <div id="arena-players"></div>
+  </div>
+</div>
+
+<script src="shared/card-data.js"></script>
+<script src="shared/card-render.js"></script>
+<script src="shared/hat-avatar.js"></script>
+<script src="shared/drive-auth.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  // ==========================================================================
+  // Wizards — Test-arena (standalone module)
+  //
+  // Herkomst: dit bestand vervangt het "Test-arena"-tabblad dat voorheen samen
+  // met "Wizard Council" in één werkbestand zat (Wizards - Arena 0.11.x.html).
+  // De speellogica (drag&drop tussen zones, tap/ready, tellers, zoom/choice/
+  // pile-overlays, chat/log, multiplayer-relay) is overgenomen; wat verandert:
+  //
+  //   1) Kaartmodel/-rendering en login/Drive-sync komen nu uit de gedeelde
+  //      modules (shared/card-data.js, card-render.js, drive-auth.js) i.p.v.
+  //      hier gedupliceerd te staan.
+  //   2) Setup: elke speler kiest voortaan zelf zijn eigen naam+deck (i.p.v.
+  //      één scherm waarop iemand voor beide spelers kiest) — zie "Seats"
+  //      hieronder. Een "solo-test"-schakelaar houdt de oude werkwijze
+  //      (beide decks zelf instellen, zonder tegenstander) beschikbaar.
+  //   3) Nog geen regelengine (geen automatische beurten, geen afgedwongen
+  //      hand-refresh, geen automatische Time Counter-afbouw) — dat is
+  //      bewust nog niet gebouwd. Wel is de state en de opzet van functies
+  //      zo gehouden dat zoiets er later relatief eenvoudig bovenop kan:
+  //        - elke bordwijziging loopt door een klein aantal centrale
+  //          functies (performCardMove, drawCard, restPlayer, ...) die stuk
+  //          voor stuk een enkel, benoemd ding doen — een latere engine kan
+  //          op diezelfde functies inhaken of ze aanroepen i.p.v. rechtstreeks
+  //          in de state te knoeien;
+  //        - het actielog (logAction) registreert voortaan ook een "type"
+  //          naast de leestekst, zodat een latere engine acties kan herkennen
+  //          zonder tekst te moeten parsen;
+  //        - de per-kaart tellers (wit/zwart) zijn bewust generiek gehouden
+  //          (zoals voorheen) zodat ze zowel Time Counters als Damage-tellers
+  //          kunnen voorstellen, naargelang de kaart/het gametext-veld dat
+  //          later bepaalt;
+  //        - Vulnerable/Confused/Forlorn (cfr. regels: "once a Wizard no
+  //          longer has 🛡️/🧠/👻...") wordt hieronder al puur informatief
+  //          getoond zodra een schild op 0 staat — geen automatische
+  //          gevolgen, enkel een leesbare badge.
+  // ==========================================================================
+
+  // ---------- Lokale decks-bibliotheek (per browser, cfr. decks.html) ----------
+  const DECKS_STORAGE_KEY = "wizards_decks_v1";
+  let collection = [];
+  let decks = [];
+
+  function loadDecks(){
+    try {
+      const saved = localStorage.getItem(DECKS_STORAGE_KEY);
+      if (saved) decks = JSON.parse(saved);
+    } catch (e) { decks = []; }
+    if (!Array.isArray(decks)) decks = [];
+  }
+
+  function deckCardCount(deck){
+    return Object.values((deck && deck.qty) || {}).reduce((a, b) => a + (b || 0), 0);
+  }
+
+  function findDeck(id){
+    return decks.find(d => d.id === id) || null;
+  }
+
+  function findCard(id){
+    return collection.find(c => c.id === id) || null;
+  }
+
+  function shuffleArray(arr){
+    for (let i = arr.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  // Kaart-qty-map ({cardId: aantal}) -> array van losse kaart-instanties,
+  // nog niet geschud. Wordt gebruikt voor elk speler-deck, ongeacht of dat
+  // via de lokale decks-bibliotheek, een geïmporteerd bestand, of een
+  // netwerk-seat van de tegenstander komt — die drie bronnen leveren
+  // uiteindelijk allemaal gewoon zo'n qty-map op.
+  function buildDeckInstances(qty){
+    const list = [];
+    Object.entries(qty || {}).forEach(([cardId, n]) => {
+      for (let i = 0; i < (n || 0); i++) list.push({ instanceId: uid(), cardId, tapped: false, counters: freshCounters() });
+    });
+    return list;
+  }
+
+  function freshCounters(){ return { white: 0, black: 0 }; }
+
+  // Test-instellingen (arena.settings) — gelden voor de hele match, niet per
+  // speler, en zijn bedoeld om tijdens het testen heel gericht een bepaald
+  // stukje automatisering aan/uit te kunnen zetten (zie tandwiel-menu
+  // vlak onder de spelernaam):
+  //   - autoPayCost (punt 3): Actions/Spite automatisch aftrekken bij casten.
+  //   - enforceCastLegality (punt 4): een cast blokkeren als hij niet legaal
+  //     is (onvoldoende Actions/Spite, of niet aan zet/geen priority).
+  //   - resolveEnabled: de Resolve-knoppen op de stack aan/uit zetten, om
+  //     heel gericht te kunnen testen zonder per ongeluk te resolven.
+  //   - hideOpponentHand: toont de hand van de tegenstander (vanuit het
+  //     perspectief van mySeat, dus enkel relevant in netwerkmodus — in
+  //     solo-modus bestuur je zelf beide spelers en is er niets te
+  //     verbergen) als face-down rugkantjes i.p.v. de echte kaartfiches.
+  // autoPayCost, resolveEnabled en hideOpponentHand starten AAN. Sinds
+  // 2026-08-20 start ook enforceCastLegality AAN (punt 4) — voorheen bewust
+  // UIT als opt-in schakelaar, maar dat bleek in de praktijk net de default
+  // die je toch elke keer manueel aanvinkt.
+  function freshArenaSettings(){
+    return { autoPayCost: true, enforceCastLegality: true, resolveEnabled: true, hideOpponentHand: true };
+  }
+
+  function ensureArenaSettings(){
+    if (!arena) return;
+    if (!arena.settings) { arena.settings = freshArenaSettings(); return; }
+    // Vult ontbrekende sleutels aan bij een bestaande (autosave-)arena van
+    // vóór deze instelling bestond, zonder al gekozen instellingen te
+    // overschrijven — zelfde additief mechanisme als elders in dit bestand.
+    const defaults = freshArenaSettings();
+    Object.keys(defaults).forEach(key => {
+      if (arena.settings[key] === undefined) arena.settings[key] = defaults[key];
+    });
+  }
+
+  function emptyPlayerState(name){
+    return {
+      name: name,
+      deck: [], hand: [], inPlayBody: [], inPlayMind: [], inPlaySoul: [], discard: [], banished: [],
+      counters: { actions: 0, spite: 0, bodyShield: 0, mindShield: 0, soulShield: 0, bodyStat: 0, mindStat: 0, soulStat: 0 },
+      avatar: null
+    };
+  }
+
+  function buildPlayerFromSeat(seat){
+    const p = emptyPlayerState((seat && seat.name) || "Speler");
+    p.deck = shuffleArray(buildDeckInstances(seat && seat.qty));
+    return p;
+  }
+
+  function cleanQty(rawQty){
+    const out = {};
+    Object.entries(rawQty || {}).forEach(([cardId, n]) => {
+      const num = Math.max(0, parseInt(n) || 0);
+      if (num > 0) out[cardId] = num;
+    });
+    return out;
+  }
+
+  function importDeckFromFile(file, cb){
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      let data;
+      try { data = JSON.parse(ev.target.result); }
+      catch (e) { alert("Kon dit bestand niet lezen. Is het een geldig deck-JSON-bestand?"); return; }
+      const qty = cleanQty(data && data.qty);
+      const name = (data && typeof data.name === "string" && data.name.trim()) ? data.name.trim() : "Geïmporteerd deck";
+      cb({ name, qty });
+    };
+    reader.readAsText(file);
+  }
+
+  // ---------- Setup: "eigen deck per speler" ----------
+  // "seats" is de tijdens-setup gesynchroniseerde stand: elke deelnemer
+  // vult enkel zijn eigen seat (p0 of p1) en broadcast die via dezelfde
+  // "arena-state"-boodschap die ook het bord gebruikt (zie mpBroadcastState
+  // verderop) — er is bewust geen apart berichttype nodig, de relay-server
+  // leest de inhoud toch niet.
+  //
+  // arena kan dus twee vormen aannemen:
+  //   { phase: "setup", seats: { p0: seatOrNull, p1: seatOrNull } }
+  //   { phase: "board", players: [p0, p1], stack: [], log: [], chat: [] }
+  // waarbij een seat er zo uitziet: { name, deckLabel, qty }
+  //
+  // mySeat ("p0"/"p1"/null) is puur lokale sessie-state: welke seat dit
+  // toestel bezet in de huidige room. Bij een nieuwe room claimt de eerste
+  // aanwezige p0, de tweede p1 — geen persistente identiteit, geen
+  // wachtwoord-achtige claim; voor een hobby-tool met twee bekende spelers
+  // is dat voldoende robuust (cfr. de rest van dit bestand: "bewust zo dom
+  // mogelijk").
+  let mySeat = null;
+  let soloMode = false;
+  let myPendingPick = { name: "", qty: null, deckLabel: "" };
+
+  function freshSetupArena(){
+    return { phase: "setup", seats: { p0: null, p1: null } };
+  }
+
+  function currentMySeatPick(){
+    const nameInput = document.getElementById("my-name");
+    const name = (nameInput && nameInput.value.trim()) || (driveUsernameCache || "Speler 1");
+    return { name, deckLabel: myPendingPick.deckLabel, qty: myPendingPick.qty || {} };
+  }
+
+  // Schrijft de lokale keuze in mijn seat (indien toegewezen) en broadcast.
+  function pushMySeat(){
+    if (!arena || arena.phase !== "setup" || !mySeat) return;
+    arena.seats[mySeat] = currentMySeatPick();
+    saveArena();
+    renderArenaSetup();
+  }
+
+  function otherSeatKey(seat){ return seat === "p0" ? "p1" : "p0"; }
+
+  // ---------- Setup-scherm rendering ----------
+  function renderArenaTab(){
+    if (arena && arena.phase === "board"){
+      document.getElementById("arena-setup").style.display = "none";
+      document.getElementById("arena-board").style.display = "flex";
+      renderArenaBoard();
+    } else {
+      document.getElementById("arena-setup").style.display = "block";
+      document.getElementById("arena-board").style.display = "none";
+      renderArenaSetup();
+    }
+  }
+
+  function populateDeckSelect(selectEl, currentQty){
+    const prev = selectEl.value;
+    selectEl.innerHTML = '<option value="">— geen deck geselecteerd —</option>' +
+      decks.map(d => `<option value="${d.id}">${escapeHtml(d.name) || "(naamloos deck)"} — ${deckCardCount(d)} kaarten</option>`).join("") +
+      (currentQty && !decks.some(d => JSON.stringify(d.qty) === JSON.stringify(currentQty)) ? '<option value="__imported__">(geïmporteerd bestand)</option>' : "");
+    if (decks.some(d => d.id === prev)) selectEl.value = prev;
+  }
+
+  function renderArenaSetup(){
+    const empty = document.getElementById("arena-setup-empty");
+    const content = document.getElementById("arena-setup-content");
+    if (collection.length === 0){
+      empty.style.display = "block";
+      content.style.display = "none";
+      return;
+    }
+    empty.style.display = "none";
+    content.style.display = "block";
+
+    document.getElementById("arena-no-decks-hint").style.display = decks.length === 0 ? "block" : "none";
+
+    const soloToggle = document.getElementById("solo-toggle");
+    soloMode = soloToggle.checked;
+    document.getElementById("solo-p2-panel").style.display = soloMode ? "flex" : "none";
+    document.getElementById("opp-panel").style.display = (!soloMode) ? "block" : "none";
+
+    populateDeckSelect(document.getElementById("my-deck-select"), myPendingPick.qty);
+    if (soloMode) populateDeckSelect(document.getElementById("p2-deck-select"), null);
+
+    // Tegenstander-paneel (enkel relevant buiten solo-modus)
+    if (!soloMode){
+      const oppBody = document.getElementById("opp-panel-body");
+      const oppSeatKey = mySeat ? otherSeatKey(mySeat) : null;
+      const oppSeat = (arena && arena.phase === "setup" && oppSeatKey) ? arena.seats[oppSeatKey] : null;
+      if (!mpConnected){
+        oppBody.className = "opp-empty";
+        oppBody.textContent = "Nog niet verbonden — verbind hierboven eerst met je tegenstander.";
+      } else if (!oppSeat){
+        oppBody.className = "opp-empty";
+        oppBody.textContent = "Verbonden, wachten tot je tegenstander een naam en deck kiest…";
+      } else {
+        oppBody.className = "opp-info";
+        const count = Object.values(oppSeat.qty || {}).reduce((a, b) => a + (b || 0), 0);
+        oppBody.innerHTML = `<b>${escapeHtml(oppSeat.name)}</b> — ${escapeHtml(oppSeat.deckLabel || "deck")} (${count} kaarten)`;
+      }
+    }
+
+    updateArenaTotals();
+    updateStartButtonState();
+  }
+
+  function updateArenaTotals(){
+    const myName = (document.getElementById("my-name").value || "Speler 1");
+    const myCount = Object.values(myPendingPick.qty || {}).reduce((a, b) => a + (b || 0), 0);
+    document.getElementById("arena-total-1").textContent = `${myName}: ${myCount} kaart${myCount === 1 ? "" : "en"}`;
+
+    if (soloMode){
+      const n2 = document.getElementById("p2-name").value || "Speler 2";
+      const deck2 = findDeck(document.getElementById("p2-deck-select").value);
+      const t2 = deck2 ? deckCardCount(deck2) : (soloP2Pick.qty ? Object.values(soloP2Pick.qty).reduce((a,b)=>a+(b||0),0) : 0);
+      document.getElementById("arena-total-2").textContent = `${n2}: ${t2} kaart${t2 === 1 ? "" : "en"}`;
+    } else {
+      document.getElementById("arena-total-2").textContent = "";
+    }
+  }
+
+  function updateStartButtonState(){
+    const btn = document.getElementById("btn-start-arena");
+    const hint = document.getElementById("arena-start-hint");
+    const myCount = Object.values(myPendingPick.qty || {}).reduce((a, b) => a + (b || 0), 0);
+
+    if (soloMode){
+      const t2count = Object.values(soloP2Pick.qty || {}).reduce((a, b) => a + (b || 0), 0);
+      const ready = myCount > 0 && t2count > 0;
+      btn.disabled = !ready;
+      hint.textContent = ready ? "" : "Kies voor beide spelers een deck met minstens 1 kaart.";
+      return;
+    }
+
+    if (myCount === 0){
+      btn.disabled = true;
+      hint.textContent = "Kies eerst je eigen deck.";
+      return;
+    }
+    if (!mpConnected){
+      btn.disabled = false;
+      hint.textContent = "Niet verbonden: starten speelt enkel jouw kant lokaal — verbind hierboven om samen te spelen.";
+      return;
+    }
+    const oppSeatKey = mySeat ? otherSeatKey(mySeat) : null;
+    const oppSeat = (arena && arena.phase === "setup" && oppSeatKey) ? arena.seats[oppSeatKey] : null;
+    if (!oppSeat){
+      btn.disabled = true;
+      hint.textContent = "Wachten op je tegenstander…";
+      return;
+    }
+    btn.disabled = false;
+    hint.textContent = "";
+  }
+
+  let soloP2Pick = { qty: null };
+
+  function getStarterChoice(){
+    const el = document.getElementById("starter-select");
+    return el ? el.value : "me";
+  }
+
+  function startArena(){
+    const starterChoice = getStarterChoice();
+
+    if (soloMode){
+      const p1 = buildPlayerFromSeat({ name: document.getElementById("my-name").value || "Speler 1", qty: myPendingPick.qty });
+      const p2 = buildPlayerFromSeat({ name: document.getElementById("p2-name").value || "Speler 2", qty: soloP2Pick.qty });
+      arena = { phase: "board", players: [p1, p2], stack: [], log: [], chat: [], settings: freshArenaSettings() };
+      renderArenaTab();
+      startPlayerTurn(starterChoice === "opponent" ? 1 : 0);
+      return;
+    }
+
+    // Netwerkmodus: bouw het bord uit mijn eigen seat + de laatst bekende
+    // seat van de tegenstander. Wie ook op "Start" klikt, de resulterende
+    // volledige `arena` wordt gewoon uitgezonden — de andere kant neemt 'm
+    // klakkeloos over, precies zoals elke andere bordwijziging.
+    const mySeatData = arena && arena.seats ? arena.seats[mySeat] : currentMySeatPick();
+    const oppSeatKey = mySeat ? otherSeatKey(mySeat) : "p1";
+    const oppSeatData = arena && arena.seats ? arena.seats[oppSeatKey] : null;
+    if (!mySeatData || !oppSeatData){
+      alert("Nog niet klaar om te starten — controleer of beide spelers een deck gekozen hebben.");
+      return;
+    }
+    const seatsInOrder = mySeat === "p1" ? [oppSeatData, mySeatData] : [mySeatData, oppSeatData];
+    const players = seatsInOrder.map(buildPlayerFromSeat);
+    const myIdx = mySeat === "p1" ? 1 : 0;
+    const startIdx = starterChoice === "opponent" ? otherPlayerIdx(myIdx) : myIdx;
+    arena = { phase: "board", players, stack: [], log: [], chat: [], settings: freshArenaSettings() };
+    renderArenaTab();
+    startPlayerTurn(startIdx);
+  }
+
+  document.getElementById("btn-start-arena").addEventListener("click", startArena);
+
+  document.getElementById("solo-toggle").addEventListener("change", () => { renderArenaSetup(); });
+
+  document.getElementById("my-name").addEventListener("input", () => { pushMySeat(); updateArenaTotals(); updateStartButtonState(); });
+  document.getElementById("my-deck-select").addEventListener("change", (e) => {
+    const deck = findDeck(e.target.value);
+    myPendingPick = deck ? { qty: Object.assign({}, deck.qty), deckLabel: deck.name } : { qty: {}, deckLabel: "" };
+    pushMySeat(); updateArenaTotals(); updateStartButtonState();
+  });
+  document.getElementById("my-deck-import").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (file) importDeckFromFile(file, (picked) => {
+      myPendingPick = { qty: picked.qty, deckLabel: picked.name };
+      document.getElementById("my-deck-select").value = "__imported__";
+      pushMySeat(); renderArenaSetup();
+    });
+    e.target.value = "";
+  });
+
+  document.getElementById("p2-name").addEventListener("input", updateArenaTotals);
+  document.getElementById("p2-deck-select").addEventListener("change", (e) => {
+    const deck = findDeck(e.target.value);
+    soloP2Pick = deck ? { qty: Object.assign({}, deck.qty) } : { qty: {} };
+    updateArenaTotals(); updateStartButtonState();
+  });
+  document.getElementById("p2-deck-import").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (file) importDeckFromFile(file, (picked) => {
+      soloP2Pick = { qty: picked.qty };
+      document.getElementById("p2-deck-select").value = "__imported__";
+      updateArenaTotals(); updateStartButtonState();
+    });
+    e.target.value = "";
+  });
+
+  function resizeAvatarFile(file, cb){
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxSize = 300;
+        let w = img.width, h = img.height;
+        const ratio = Math.min(maxSize / w, maxSize / h, 1);
+        w = Math.round(w * ratio); h = Math.round(h * ratio);
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        cb(canvas.toDataURL("image/jpeg", 0.85));
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ---- Board phase ----
+  const ZONE_LABELS = { deck: "Deck", "deck-bottom": "Deck (onder)", hand: "Hand", inPlayBody: "In Play — Body", inPlayMind: "In Play — Mind", inPlaySoul: "In Play — Soul", discard: "Discard", banished: "Banished", stack: "Stack" };
+
+  function getZoneArray(playerIdx, zone){
+    if (zone === "stack") return arena.stack;
+    return arena.players[playerIdx][zone];
+  }
+
+  function findInstance(playerIdx, zone, instanceId){
+    const list = getZoneArray(playerIdx, zone);
+    return list.find(ci => ci.instanceId === instanceId) || null;
+  }
+
+  function removeInstance(playerIdx, zone, instanceId){
+    const list = getZoneArray(playerIdx, zone);
+    const idx = list.findIndex(ci => ci.instanceId === instanceId);
+    if (idx !== -1) return list.splice(idx, 1)[0];
+    return null;
+  }
+
+  // Registreert een automatisch verwerkte actie in het gedeelde log. `type`
+  // is puur informatieve metadata (bv. "move","tap","rest","inflict","draw",
+  // "shuffle","counter") naast de leestekst — nu nergens voor gebruikt, maar
+  // laat een latere engine acties herkennen zonder de tekst te moeten
+  // parsen. Wordt door de actiefuncties zelf aangeroepen, net vóór hun
+  // saveArena().
+  function logAction(text, type){
+    if (!arena) return;
+    if (!Array.isArray(arena.log)) arena.log = [];
+    arena.log.push({ text, type: type || "misc", time: Date.now() });
+    if (arena.log.length > 300) arena.log.splice(0, arena.log.length - 300);
+  }
+
+  function performCardMove(srcPlayerIdx, srcZone, instanceId, destPlayerIdx, destZone){
+    if (srcZone === "stack" && destZone === "stack") return;
+    if (srcZone !== "stack" && destZone !== "stack" && srcPlayerIdx === destPlayerIdx && srcZone === destZone) return;
+    const ci = removeInstance(srcPlayerIdx, srcZone, instanceId);
+    if (!ci) return;
+    if (srcZone === "stack"){
+      // Kaart verlaat de stack via een handmatige sleepactie (i.p.v. via
+      // Resolve) — de cast-metadata (caster/target/prioriteit) is dan niet
+      // meer relevant en wordt opgekuist.
+      delete ci.casterIdx; delete ci.targetLabel; delete ci.destPlayerIdx; delete ci.destZone; delete ci.priorityWith;
+    }
+    if (destZone === "stack"){
+      arena.stack.push(ci);
+    } else {
+      const destPlayer = arena.players[destPlayerIdx];
+      if (destZone === "deck") destPlayer.deck.unshift(ci);
+      else if (destZone === "deck-bottom") destPlayer.deck.push(ci);
+      else destPlayer[destZone].push(ci);
+    }
+    const staysInPlay = srcPlayerIdx === destPlayerIdx && srcZone.startsWith("inPlay") && destZone.startsWith("inPlay");
+    if (!staysInPlay){
+      ci.tapped = false;
+      ci.counters = freshCounters();
+    }
+    const card = findCard(ci.cardId);
+    const cardName = card ? (card.name || "(naamloos)") : "(verwijderde kaart)";
+    const srcPlayer = (srcZone !== "stack" && arena.players[srcPlayerIdx]) ? arena.players[srcPlayerIdx].name : null;
+    const destPlayer = (destZone !== "stack" && arena.players[destPlayerIdx] !== undefined && arena.players[destPlayerIdx]) ? arena.players[destPlayerIdx].name : null;
+    const fromLabel = srcPlayer ? `${ZONE_LABELS[srcZone] || srcZone} (${srcPlayer})` : (ZONE_LABELS[srcZone] || srcZone);
+    const toLabel = destPlayer ? `${ZONE_LABELS[destZone] || destZone} (${destPlayer})` : (ZONE_LABELS[destZone] || destZone);
+    logAction(`${cardName}: ${fromLabel} → ${toLabel}`, "move");
+    saveArena();
+    renderArenaBoard();
+  }
+
+  function findDropZoneAt(x, y){
+    const el = document.elementFromPoint(x, y);
+    if (!el) return null;
+    return el.closest("[data-dropzone]");
+  }
+
+  // Zoekt de exacte kaartfiche (indien aanwezig) onder het gegeven punt, om
+  // te bepalen of een cast een specifieke kaart target (i.p.v. enkel een
+  // zone/speler in het algemeen). De sleep-ghost heeft pointer-events:none,
+  // dus elementFromPoint kijkt daar automatisch doorheen.
+  function findChipAt(x, y){
+    const el = document.elementFromPoint(x, y);
+    if (!el) return null;
+    return el.closest(".arena-chip");
+  }
+
+  // Legaliteit van een cast (punt 4, enkel afgedwongen als arena.settings.
+  // enforceCastLegality aanstaat — zie tandwiel-menu). Twee dingen worden
+  // gecontroleerd:
+  //   1) Genoeg Actions/Spite voor kaarten met een kost (cfr. TYPE_CONFIG).
+  //   2) Juiste beurt/priority: ligt de stack leeg, dan mag enkel de speler
+  //      aan zet (arena.turn) casten; ligt er al iets op de stack, dan mag
+  //      enkel wie op dat moment priority heeft (cfr. de bestaande
+  //      priority-stack in castCardToStack/resolveStackTop) er nog iets
+  //      bovenop casten.
+  // Geeft { ok:true } of { ok:false, reason:"..." } terug; roept zelf niets
+  // aan (geen alert, geen state-wijziging) zodat dit ook los te herbruiken/
+  // testen is.
+  function checkCastLegality(casterIdx, ci){
+    ensureArenaSettings();
+    if (!arena.settings.enforceCastLegality) return { ok: true };
+
+    if (arena.stack.length === 0){
+      if (arena.turn !== casterIdx){
+        return { ok: false, reason: `Het is niet jouw beurt (aan zet: ${arena.players[arena.turn] ? arena.players[arena.turn].name : "?"}).` };
+      }
+    } else {
+      const top = arena.stack[arena.stack.length - 1];
+      if (top.priorityWith !== casterIdx){
+        const activeName = arena.players[top.priorityWith] ? arena.players[top.priorityWith].name : "?";
+        return { ok: false, reason: `Je hebt momenteel geen priority (die ligt bij ${activeName}) — wacht tot die Resolve klikt of zelf iets cast.` };
+      }
+    }
+
+    const card = findCard(ci.cardId);
+    const cfg = (typeof TYPE_CONFIG !== "undefined" && card) ? (TYPE_CONFIG[card.type] || null) : null;
+    if (cfg && cfg.cost){
+      const casterPlayer = arena.players[casterIdx];
+      const actionCost = parseInt(card.actionCost, 10) || 0;
+      const spiteCost = parseInt(card.spiteCost, 10) || 0;
+      const haveActions = casterPlayer.counters.actions || 0;
+      const haveSpite = casterPlayer.counters.spite || 0;
+      if (actionCost > haveActions){
+        return { ok: false, reason: `Onvoldoende Actions: ${actionCost} nodig, ${haveActions} beschikbaar.` };
+      }
+      if (spiteCost > haveSpite){
+        return { ok: false, reason: `Onvoldoende Spite: ${spiteCost} nodig, ${haveSpite} beschikbaar.` };
+      }
+    }
+
+    return { ok: true };
+  }
+
+  const DRAG_THRESHOLD = 6;
+
+  function startCardDrag(e, chipEl, playerIdx, zone, ci){
+    if (e.button !== undefined && e.button !== 0) return;
+    const startX = e.clientX, startY = e.clientY;
+    const rect = chipEl.getBoundingClientRect();
+    const offsetX = startX - rect.left, offsetY = startY - rect.top;
+    let moved = false, ghost = null, lastHovered = null, lastHoveredChip = null;
+
+    function onMove(ev){
+      const dx = ev.clientX - startX, dy = ev.clientY - startY;
+      if (!moved && Math.hypot(dx, dy) > DRAG_THRESHOLD){
+        moved = true;
+        hideArenaPreview();
+        chipEl.classList.add("dragging-source");
+        ghost = chipEl.cloneNode(true);
+        ghost.classList.add("arena-drag-ghost");
+        ghost.style.width = rect.width + "px";
+        document.body.appendChild(ghost);
+      }
+      if (moved){
+        ghost.style.left = (ev.clientX - offsetX) + "px";
+        ghost.style.top = (ev.clientY - offsetY) + "px";
+        const target = findDropZoneAt(ev.clientX, ev.clientY);
+        if (target !== lastHovered){
+          if (lastHovered) lastHovered.classList.remove("drop-hover");
+          if (target) target.classList.add("drop-hover");
+          lastHovered = target;
+        }
+
+        // Bij een cast-attempt (kaart uit de hand naar stack/In Play) ook de
+        // specifieke kaart eronder highlighten, incl. een kaart die al op de
+        // stack ligt, zodat zichtbaar is dat je gericht op die kaart target.
+        let hoveredChip = null;
+        if (zone === "hand" && target){
+          const destZoneCandidate = target.dataset.zone;
+          if (destZoneCandidate === "stack" || (destZoneCandidate && destZoneCandidate.indexOf("inPlay") === 0)){
+            const chipUnderPointer = findChipAt(ev.clientX, ev.clientY);
+            if (chipUnderPointer && chipUnderPointer !== chipEl && chipUnderPointer.dataset.instanceId !== ci.instanceId){
+              hoveredChip = chipUnderPointer;
+            }
+          }
+        }
+        if (hoveredChip !== lastHoveredChip){
+          if (lastHoveredChip) lastHoveredChip.classList.remove("cast-target-hover");
+          if (hoveredChip) hoveredChip.classList.add("cast-target-hover");
+          lastHoveredChip = hoveredChip;
+        }
+      }
+    }
+
+    function onUp(ev){
+      chipEl.removeEventListener("pointermove", onMove);
+      chipEl.removeEventListener("pointerup", onUp);
+      chipEl.removeEventListener("pointercancel", onUp);
+      try { chipEl.releasePointerCapture(e.pointerId); } catch (err){ /* already released */ }
+
+      if (lastHoveredChip) lastHoveredChip.classList.remove("cast-target-hover");
+
+      if (moved){
+        chipEl.classList.remove("dragging-source");
+        if (ghost) ghost.remove();
+        if (lastHovered){
+          lastHovered.classList.remove("drop-hover");
+          const destZone = lastHovered.dataset.zone;
+
+          // Casten: een kaart die vanuit de hand op de stack-zone zelf, of
+          // rechtstreeks op een In Play-zone/kaart wordt gesleept, gaat niet
+          // meteen naar die bestemming maar wordt onderschept en op de stack
+          // gelegd met een target erbij — zie castCardToStack hieronder.
+          const isCastAttempt = zone === "hand" && (destZone === "stack" || (destZone && destZone.indexOf("inPlay") === 0));
+          const castLegality = isCastAttempt ? checkCastLegality(playerIdx, ci) : null;
+          if (isCastAttempt && !castLegality.ok){
+            showArenaNotice("Cast niet toegestaan", castLegality.reason);
+          } else if (isCastAttempt){
+            let destPlayerIdxForZone = null;
+            if (destZone !== "stack"){
+              const section = lastHovered.closest(".arena-player");
+              if (section) destPlayerIdxForZone = parseInt(section.dataset.playerIdx, 10);
+            }
+            const targetChipEl = findChipAt(ev.clientX, ev.clientY);
+            let targetInfo = null;
+            if (targetChipEl && targetChipEl.dataset.instanceId && targetChipEl.dataset.instanceId !== ci.instanceId){
+              const tPlayerIdxRaw = targetChipEl.dataset.playerIdx;
+              const tPlayerIdx = tPlayerIdxRaw === "" ? null : parseInt(tPlayerIdxRaw, 10);
+              const tZone = targetChipEl.dataset.zone;
+              const tList = (tPlayerIdx !== null && arena.players[tPlayerIdx]) ? getZoneArray(tPlayerIdx, tZone) : (tZone === "stack" ? arena.stack : null);
+              const tCi = tList ? tList.find(x => x.instanceId === targetChipEl.dataset.instanceId) : null;
+              if (tZone === "stack" && tCi){
+                // Target is zelf een kaart die nog op de stack ligt (bv. met
+                // het oog op een latere "tegenwerk"-actie): zo'n kaart heeft
+                // geen zone-eigenaar, onthoud in plaats daarvan wie ze cast'te.
+                targetInfo = { playerIdx: null, cardId: tCi.cardId, onStack: true, stackCasterIdx: tCi.casterIdx };
+              } else {
+                targetInfo = { playerIdx: tPlayerIdx, cardId: tCi ? tCi.cardId : null };
+              }
+            }
+            const removedCi = removeInstance(playerIdx, zone, ci.instanceId);
+            if (removedCi) castCardToStack(playerIdx, removedCi, destPlayerIdxForZone, destZone === "stack" ? null : destZone, targetInfo);
+          } else if (destZone === "stack"){
+            performCardMove(playerIdx, zone, ci.instanceId, null, "stack");
+          } else {
+            const section = lastHovered.closest(".arena-player");
+            if (section){
+              const destPlayerIdx = parseInt(section.dataset.playerIdx, 10);
+              if (destZone === zone && destPlayerIdx === playerIdx && zone === "hand"){
+                reorderHand(playerIdx, ci.instanceId, ev.clientX, lastHovered);
+              } else {
+                performCardMove(playerIdx, zone, ci.instanceId, destPlayerIdx, destZone);
+              }
+            }
+          }
+        }
+      } else {
+        openArenaZoom(playerIdx, zone, ci.instanceId);
+      }
+    }
+
+    chipEl.setPointerCapture(e.pointerId);
+    chipEl.addEventListener("pointermove", onMove);
+    chipEl.addEventListener("pointerup", onUp);
+    chipEl.addEventListener("pointercancel", onUp);
+  }
+
+  function addCounterToInstance(playerIdx, zone, instanceId, color){
+    const ci = findInstance(playerIdx, zone, instanceId);
+    if (!ci) return;
+    if (!ci.counters) ci.counters = freshCounters();
+    ci.counters[color] = (ci.counters[color] || 0) + 1;
+    saveArena();
+    renderArenaBoard();
+  }
+
+  function removeCounterFromInstance(playerIdx, zone, instanceId, color){
+    const ci = findInstance(playerIdx, zone, instanceId);
+    if (!ci || !ci.counters) return;
+    ci.counters[color] = Math.max(0, (ci.counters[color] || 0) - 1);
+    saveArena();
+    renderArenaBoard();
+  }
+
+  // ---- Card zoom view ----
+  let arenaZoom = null;
+
+  function openArenaZoom(playerIdx, zone, instanceId){
+    hideArenaPreview();
+    arenaZoom = { playerIdx, zone, instanceId };
+    renderArenaZoomOverlay();
+  }
+
+  function closeArenaZoom(){
+    if (!arenaZoom) return;
+    arenaZoom = null;
+    renderArenaZoomOverlay();
+  }
+
+  function ensureArenaZoomEl(){
+    let el = document.getElementById("arena-zoom-overlay");
+    if (!el){
+      el = document.createElement("div");
+      el.id = "arena-zoom-overlay";
+      document.getElementById("view-arena").appendChild(el);
+      el.addEventListener("pointerdown", (e) => { if (e.target === el) closeArenaZoom(); });
+      document.addEventListener("keydown", (e) => { if (e.key === "Escape" && arenaZoom) closeArenaZoom(); });
+    }
+    return el;
+  }
+
+  function renderArenaZoomOverlay(){
+    const el = ensureArenaZoomEl();
+    if (!arenaZoom){
+      el.classList.remove("open");
+      el.innerHTML = "";
+      return;
+    }
+    const { playerIdx, zone, instanceId } = arenaZoom;
+    const ci = findInstance(playerIdx, zone, instanceId);
+    if (!ci){
+      arenaZoom = null;
+      el.classList.remove("open");
+      el.innerHTML = "";
+      return;
+    }
+    const card = findCard(ci.cardId);
+    const counters = ci.counters || freshCounters();
+    const showCounters = zoneAllowsCounters(zone);
+    const canFile = playerIdx !== null && playerIdx !== undefined;
+
+    el.classList.add("open");
+    el.innerHTML = `
+      <div class="arena-zoom-content">
+        <div style="position:relative;">
+          ${card ? buildCardFrameHtml(card) : `<div class="card-frame"><div class="chip-name" style="color:var(--ink-dim); margin:20px;">Verwijderde kaart</div></div>`}
+          ${ci.tapped ? `<span class="arena-zoom-tapped-tag">TAP</span>` : ""}
+        </div>
+        <div class="arena-zoom-panel">
+          <button type="button" class="btn primary zoom-tap-btn" id="zoom-tap-btn">${ci.tapped ? "↺ Ready maken" : "⤵ Exhaust"}</button>
+
+          ${showCounters ? `
+          <div>
+            <div class="zoom-section-label">Time Counter</div>
+            <div class="arena-zoom-counter-row">
+              <span class="zoom-dot dot-white"></span>
+              <span class="zoom-c-label">Wit</span>
+              <button type="button" id="zoom-white-minus">−</button>
+              <span class="zoom-c-value">${counters.white || 0}</span>
+              <button type="button" id="zoom-white-plus">+</button>
+            </div>
+          </div>
+          <div>
+            <div class="zoom-section-label">Damage</div>
+            <div class="arena-zoom-counter-row">
+              <span class="zoom-dot dot-black"></span>
+              <span class="zoom-c-label">Zwart</span>
+              <button type="button" id="zoom-black-minus">−</button>
+              <span class="zoom-c-value">${counters.black || 0}</span>
+              <button type="button" id="zoom-black-plus">+</button>
+            </div>
+          </div>
+          ` : `<div class="zoom-hint">Tellers zijn enkel beschikbaar voor kaarten die in het spel liggen (Body/Mind/Soul).</div>`}
+
+          <div class="zoom-actions">
+            ${canFile ? `
+              <button type="button" class="btn" id="zoom-discard-btn" ${zone === "discard" ? "disabled" : ""}>🗃 Discard card</button>
+              <button type="button" class="btn danger" id="zoom-banish-btn" ${zone === "banished" ? "disabled" : ""}>☠ Banish card</button>
+            ` : `<div class="zoom-hint">Kaarten op de stack kunnen niet rechtstreeks gediscard/banished worden — sleep ze eerst naar een speler.</div>`}
+          </div>
+        </div>
+        <button type="button" class="arena-zoom-close" id="zoom-close-btn" title="Sluiten">×</button>
+      </div>
+    `;
+
+    el.querySelector("#zoom-tap-btn").addEventListener("click", () => {
+      ci.tapped = !ci.tapped;
+      const cardForLog = findCard(ci.cardId);
+      const nameForLog = cardForLog ? (cardForLog.name || "(naamloos)") : "(verwijderde kaart)";
+      const ownerForLog = (playerIdx !== null && playerIdx !== undefined && arena.players[playerIdx]) ? ` (${arena.players[playerIdx].name})` : "";
+      logAction(`${ci.tapped ? "⤵ Exhaust" : "↺ Ready"}: ${nameForLog}${ownerForLog}`, "tap");
+      saveArena();
+      renderArenaBoard();
+    });
+    el.querySelector("#zoom-close-btn").addEventListener("click", closeArenaZoom);
+    if (showCounters){
+      el.querySelector("#zoom-white-plus").addEventListener("click", () => addCounterToInstance(playerIdx, zone, instanceId, "white"));
+      el.querySelector("#zoom-white-minus").addEventListener("click", () => removeCounterFromInstance(playerIdx, zone, instanceId, "white"));
+      el.querySelector("#zoom-black-plus").addEventListener("click", () => addCounterToInstance(playerIdx, zone, instanceId, "black"));
+      el.querySelector("#zoom-black-minus").addEventListener("click", () => removeCounterFromInstance(playerIdx, zone, instanceId, "black"));
+    }
+    if (canFile){
+      const discardBtn = el.querySelector("#zoom-discard-btn");
+      const banishBtn = el.querySelector("#zoom-banish-btn");
+      if (zone !== "discard") discardBtn.addEventListener("click", () => {
+        performCardMove(playerIdx, zone, instanceId, playerIdx, "discard");
+        closeArenaZoom();
+      });
+      if (zone !== "banished") banishBtn.addEventListener("click", () => {
+        performCardMove(playerIdx, zone, instanceId, playerIdx, "banished");
+        closeArenaZoom();
+      });
+    }
+  }
+
+  function drawCard(playerIdx){
+    const p = arena.players[playerIdx];
+    if (p.deck.length === 0) return;
+    const ci = p.deck.shift();
+    p.hand.push(ci);
+    const card = findCard(ci.cardId);
+    logAction(`🎴 ${p.name} trekt een kaart` + (card ? ` (${card.name || "(naamloos)"})` : ""), "draw");
+    saveArena();
+    renderArenaBoard();
+  }
+
+  function otherPlayerIdx(playerIdx){ return playerIdx === 0 ? 1 : 0; }
+
+  // Trekt tot n kaarten voor deze speler. Is de deck-pile op tijdens het
+  // trekken, dan wordt de discard automatisch terug in het deck geschud
+  // (één keer, mid-draw) en gaat het trekken daarna verder — cfr. objectief
+  // "als er 5 kaarten getrokken worden en er zitten er 3 in de pile, trekt
+  // het spel 3 kaarten, dan reshuffle, dan nog 2 kaarten". Is ook de
+  // discard leeg, dan stopt het trekken gewoon vroegtijdig (geen kaarten
+  // meer voorradig).
+  function drawCards(playerIdx, n){
+    const p = arena.players[playerIdx];
+    let drawn = 0;
+    for (let i = 0; i < n; i++){
+      if (p.deck.length === 0){
+        if (p.discard.length === 0) break;
+        p.deck = p.deck.concat(p.discard);
+        p.discard = [];
+        shuffleArray(p.deck);
+        logAction(`🔀 ${p.name} schudt de discard (${p.deck.length} kaart(en)) terug in het deck`, "shuffle");
+      }
+      p.hand.push(p.deck.shift());
+      drawn++;
+    }
+    return drawn;
+  }
+
+  // Herschikt een kaart binnen iemands hand naar een nieuwe positie, op
+  // basis van de x-positie waar losgelaten werd t.o.v. de andere kaarten
+  // die al in de hand-strook staan. De volgorde bepaalt welke kaarten bij
+  // einde beurt automatisch behouden blijven (zie endPlayerTurn hieronder).
+  function reorderHand(playerIdx, instanceId, clientX, containerEl){
+    const p = arena.players[playerIdx];
+    const fromIdx = p.hand.findIndex(ci => ci.instanceId === instanceId);
+    if (fromIdx === -1) return;
+    const chips = Array.from(containerEl.querySelectorAll(".arena-chip"))
+      .filter(el => el.dataset.instanceId !== instanceId);
+    let insertAt = chips.length;
+    for (let i = 0; i < chips.length; i++){
+      const rect = chips[i].getBoundingClientRect();
+      if (clientX < rect.left + rect.width / 2){ insertAt = i; break; }
+    }
+    const [ci] = p.hand.splice(fromIdx, 1);
+    p.hand.splice(insertAt, 0, ci);
+    saveArena();
+    renderArenaBoard();
+  }
+
+  // Cast een kaart vanuit de hand naar de stack, met een target erbij.
+  // - Manifestations: bij Resolve verhuist de kaart naar de zone waarop ze
+  //   gesleept werd (destZone/destPlayerIdxForZone) — dat IS hun "target".
+  // - Alle andere types (Incantation/Hex/...) zijn geen permanent: ze gaan
+  //   bij Resolve altijd naar de discard van de caster zelf. Het "target"
+  //   (een specifieke kaart via targetInfo, of anders gewoon de zone/speler
+  //   waar de kaart op gesleept werd) is dan puur informatief — het
+  //   "pijltje" op de stack — en heeft verder geen automatisch gevolg.
+  function castCardToStack(casterIdx, ci, destPlayerIdxForZone, destZone, targetInfo){
+    const card = findCard(ci.cardId);
+    const isManifestation = card && card.type === "Manifestation";
+
+    // Kost betalen bij casten: Actions/Spite (actionCost/spiteCost op de
+    // kaart) worden afgetrokken op het moment van casten (vóór de kaart op
+    // de stack komt), niet pas bij Resolve — zo staat de kost meteen vast
+    // en telt ze mee voor eventuele volgende casts terwijl deze kaart nog
+    // op de stack wacht. Enkel kaarttypes met een kost (cfr. TYPE_CONFIG:
+    // Manifestation/Incantation/Hex/Burden) betalen. Is arena.settings.
+    // autoPayCost uitgeschakeld (tandwiel-menu), dan gebeurt er hier niets
+    // — handig om dit specifieke stukje automatisering geïsoleerd te
+    // kunnen testen (of net uit te zetten om iets anders te testen).
+    ensureArenaSettings();
+    const cfgForCost = (arena.settings.autoPayCost && typeof TYPE_CONFIG !== "undefined" && card) ? (TYPE_CONFIG[card.type] || null) : null;
+    if (cfgForCost && cfgForCost.cost){
+      const casterPlayer = arena.players[casterIdx];
+      const actionCost = parseInt(card.actionCost, 10) || 0;
+      const spiteCost = parseInt(card.spiteCost, 10) || 0;
+      if (actionCost) casterPlayer.counters.actions = Math.max(0, (casterPlayer.counters.actions || 0) - actionCost);
+      if (spiteCost) casterPlayer.counters.spite = Math.max(0, (casterPlayer.counters.spite || 0) - spiteCost);
+      if (actionCost || spiteCost){
+        const costParts = [];
+        if (actionCost) costParts.push(`${actionCost}⚡`);
+        if (spiteCost) costParts.push(`${spiteCost}🔥`);
+        logAction(`💸 ${casterPlayer.name} betaalt ${costParts.join(" ")} om "${card.name || "(naamloos)"}" te casten`, "pay-cost");
+      }
+    }
+
+    let resolveDestPlayerIdx, resolveDestZone;
+    if (isManifestation && destZone && destPlayerIdxForZone !== null){
+      resolveDestPlayerIdx = destPlayerIdxForZone;
+      resolveDestZone = destZone;
+    } else {
+      resolveDestPlayerIdx = casterIdx;
+      resolveDestZone = "discard";
+    }
+
+    let targetLabel;
+    if (targetInfo && targetInfo.cardId){
+      const targetCard = findCard(targetInfo.cardId);
+      const targetName = targetCard ? (targetCard.name || "(naamloos)") : "(kaart)";
+      if (targetInfo.onStack){
+        const stackCasterName = (targetInfo.stackCasterIdx !== undefined && arena.players[targetInfo.stackCasterIdx]) ? arena.players[targetInfo.stackCasterIdx].name : "?";
+        targetLabel = `${targetName} (op de stack, door ${stackCasterName})`;
+      } else {
+        const ownerName = (targetInfo.playerIdx !== null && arena.players[targetInfo.playerIdx]) ? arena.players[targetInfo.playerIdx].name : "?";
+        targetLabel = `${targetName} (${ownerName})`;
+      }
+    } else if (destZone){
+      const ownerName = (destPlayerIdxForZone !== null && arena.players[destPlayerIdxForZone]) ? arena.players[destPlayerIdxForZone].name : "?";
+      targetLabel = `${ZONE_LABELS[destZone] || destZone} (${ownerName})`;
+    } else {
+      targetLabel = "(geen specifiek doel)";
+    }
+
+    ci.tapped = false;
+    ci.counters = freshCounters();
+    ci.casterIdx = casterIdx;
+    ci.targetLabel = targetLabel;
+    ci.destPlayerIdx = resolveDestPlayerIdx;
+    ci.destZone = resolveDestZone;
+    // Bij het casten krijgt eerst de TEGENSTANDER van de caster de kans om
+    // te reageren (Resolve te klikken, of zelf iets bovenop te casten).
+    ci.priorityWith = otherPlayerIdx(casterIdx);
+
+    arena.stack.push(ci);
+    const casterName = arena.players[casterIdx].name;
+    const cardName = card ? (card.name || "(naamloos)") : "(naamloos)";
+    logAction(`🌀 ${casterName} cast "${cardName}" → ${targetLabel}`, "cast");
+    saveArena();
+    renderArenaBoard();
+  }
+
+  // Resolve-klik op de bovenste (=meest recente) kaart van de stack.
+  // - Klikt de TEGENSTANDER van de caster: die laat de kaart voorbij gaan,
+  //   priority gaat naar de caster om af te ronden.
+  // - Klikt de CASTER zelf (nadat hij priority terugkreeg): de kaart
+  //   resolvet echt en verhuist van de stack naar zijn bestemming.
+  function resolveStackTop(playerIdx){
+    if (!arena || !arena.stack || arena.stack.length === 0) return;
+    const entry = arena.stack[arena.stack.length - 1];
+    if (entry.priorityWith !== playerIdx) return;
+    const card = findCard(entry.cardId);
+    const cardName = card ? (card.name || "(naamloos)") : "(naamloos)";
+    if (playerIdx !== entry.casterIdx){
+      entry.priorityWith = entry.casterIdx;
+      logAction(`✅ ${arena.players[playerIdx].name} resolvet niets tegen "${cardName}" — priority naar ${arena.players[entry.casterIdx].name}`, "resolve-pass");
+      saveArena();
+      renderArenaBoard();
+      return;
+    }
+    arena.stack.pop();
+    entry.tapped = false;
+    entry.counters = freshCounters();
+    const destPlayer = arena.players[entry.destPlayerIdx];
+    const destZoneKey = entry.destZone;
+    delete entry.casterIdx; delete entry.targetLabel; delete entry.destPlayerIdx; delete entry.destZone; delete entry.priorityWith;
+    destPlayer[destZoneKey].push(entry);
+    logAction(`✨ "${cardName}" resolvet → ${ZONE_LABELS[destZoneKey] || destZoneKey} (${destPlayer.name})`, "resolve");
+    saveArena();
+    renderArenaBoard();
+  }
+
+  // Start de beurt van een speler: zet arena.turn, trekt automatisch 5
+  // kaarten (met reshuffle indien nodig, zie drawCards) en logt dit.
+  function startPlayerTurn(playerIdx){
+    arena.turn = playerIdx;
+    const p = arena.players[playerIdx];
+    const drawn = drawCards(playerIdx, 5);
+    logAction(`▶️ Beurt van ${p.name} begint — ${drawn} kaart(en) getrokken`, "turn-start");
+    saveArena();
+    renderArenaBoard();
+  }
+
+  // Einde-beurt: de eerste kaarten in de hand (t.e.m. de Mind-stat van de
+  // speler) blijven automatisch behouden, de rest wordt gediscard. De
+  // speler bepaalt zelf welke dat zijn door de kaartfiches in zijn hand
+  // vooraf te herschikken (zie reorderHand hierboven) — geen aparte
+  // keuze-popup meer nodig.
+  function endPlayerTurn(playerIdx){
+    if (!arena || arena.turn !== playerIdx) return;
+    const p = arena.players[playerIdx];
+    const mind = p.counters.mindStat || 0;
+    if (p.hand.length > mind){
+      const toDiscard = p.hand.slice(mind);
+      p.hand = p.hand.slice(0, mind);
+      toDiscard.forEach(ci => { ci.tapped = false; ci.counters = freshCounters(); p.discard.push(ci); });
+      logAction(`⏭️ ${p.name} beëindigt de beurt — eerste ${mind} kaart(en) in hand behouden, ${toDiscard.length} gediscard`, "turn-end");
+    } else {
+      logAction(`⏭️ ${p.name} beëindigt de beurt`, "turn-end");
+    }
+    saveArena();
+    startPlayerTurn(otherPlayerIdx(playerIdx));
+  }
+
+  // ---- Generic centered choice popup ----
+  let arenaChoice = null;
+
+  function openArenaChoice(title, options, onSelect){
+    arenaChoice = { title, options, onSelect };
+    renderArenaChoiceOverlay();
+  }
+
+  function closeArenaChoice(){
+    if (!arenaChoice) return;
+    arenaChoice = null;
+    renderArenaChoiceOverlay();
+  }
+
+  function ensureArenaChoiceEl(){
+    let el = document.getElementById("arena-choice-overlay");
+    if (!el){
+      el = document.createElement("div");
+      el.id = "arena-choice-overlay";
+      document.getElementById("view-arena").appendChild(el);
+      el.addEventListener("pointerdown", (e) => { if (e.target === el) closeArenaChoice(); });
+      document.addEventListener("keydown", (e) => { if (e.key === "Escape" && arenaChoice) closeArenaChoice(); });
+    }
+    return el;
+  }
+
+  function renderArenaChoiceOverlay(){
+    const el = ensureArenaChoiceEl();
+    if (!arenaChoice){
+      el.classList.remove("open");
+      el.innerHTML = "";
+      return;
+    }
+    const { title, options } = arenaChoice;
+    el.classList.add("open");
+    el.innerHTML = `
+      <div class="arena-choice-box">
+        <div class="arena-choice-title">${escapeHtml(title)}</div>
+        <div class="arena-choice-list">
+          ${options.length
+            ? options.map(o => `<button type="button" class="arena-choice-opt" data-key="${escapeHtml(o.key)}">${o.label}</button>`).join("")
+            : `<div class="arena-choice-empty">Geen opties beschikbaar.</div>`
+          }
+        </div>
+        <button type="button" class="arena-choice-close" id="choice-close-btn" title="Sluiten">×</button>
+      </div>
+    `;
+    el.querySelector("#choice-close-btn").addEventListener("click", closeArenaChoice);
+    el.querySelectorAll(".arena-choice-opt").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const cb = arenaChoice.onSelect;
+        const key = btn.dataset.key;
+        closeArenaChoice();
+        if (cb) cb(key);
+      });
+    });
+  }
+
+  // ---- Notice-popup (vervangt alert() binnen het bord/zen-mode) ----
+  let arenaNotice = null;
+
+  function showArenaNotice(title, message){
+    arenaNotice = { title, message };
+    renderArenaNoticeOverlay();
+  }
+
+  function closeArenaNotice(){
+    if (!arenaNotice) return;
+    arenaNotice = null;
+    renderArenaNoticeOverlay();
+  }
+
+  function ensureArenaNoticeEl(){
+    let el = document.getElementById("arena-notice-overlay");
+    if (!el){
+      el = document.createElement("div");
+      el.id = "arena-notice-overlay";
+      document.getElementById("view-arena").appendChild(el);
+      el.addEventListener("pointerdown", (e) => { if (e.target === el) closeArenaNotice(); });
+      document.addEventListener("keydown", (e) => { if (e.key === "Escape" && arenaNotice) closeArenaNotice(); });
+    }
+    return el;
+  }
+
+  function renderArenaNoticeOverlay(){
+    const el = ensureArenaNoticeEl();
+    if (!arenaNotice){
+      el.classList.remove("open");
+      el.innerHTML = "";
+      return;
+    }
+    const { title, message } = arenaNotice;
+    el.classList.add("open");
+    el.innerHTML = `
+      <div class="arena-notice-box">
+        <div class="arena-notice-title">${escapeHtml(title)}</div>
+        <p class="arena-notice-body">${escapeHtml(message)}</p>
+        <button type="button" class="btn primary arena-notice-ok-btn" id="notice-ok-btn">Begrepen</button>
+        <button type="button" class="arena-notice-close" id="notice-close-btn" title="Sluiten">×</button>
+      </div>
+    `;
+    el.querySelector("#notice-ok-btn").addEventListener("click", closeArenaNotice);
+    el.querySelector("#notice-close-btn").addEventListener("click", closeArenaNotice);
+  }
+
+  function openInflictChoice(playerIdx){
+    const curses = collection.filter(c => c.type === "Burden");
+    const options = curses.map(c => ({ key: c.id, label: escapeHtml(c.name) || "(naamloos)" }));
+    openArenaChoice("☠ Inflict — kies een Burden-kaart", options, (cardId) => {
+      inflictCurse(playerIdx, cardId);
+    });
+  }
+
+  function openRestChoice(playerIdx){
+    const options = [
+      { key: "bodyShield", label: "🛡️ Body-schild aanvullen" },
+      { key: "mindShield", label: "🧠 Mind-schild aanvullen" },
+      { key: "soulShield", label: "👻 Soul-schild aanvullen" }
+    ];
+    openArenaChoice("😴 Rest — kies één schildje om aan te vullen", options, (shieldKey) => {
+      restPlayer(playerIdx, shieldKey);
+    });
+  }
+
+  function inflictCurse(playerIdx, cardId){
+    const p = arena.players[playerIdx];
+    p.discard.push({ instanceId: uid(), cardId, tapped: false, counters: freshCounters() });
+    const card = findCard(cardId);
+    logAction(`☠️ ${p.name} krijgt Burden "${card ? (card.name || "(naamloos)") : "(verwijderde kaart)"}" in de discard`, "inflict");
+    saveArena();
+    renderArenaBoard();
+  }
+
+  function restPlayer(playerIdx, shieldKey){
+    const p = arena.players[playerIdx];
+    const shieldLabels = { bodyShield: "Body-schild", mindShield: "Mind-schild", soulShield: "Soul-schild" };
+    if (shieldKey && Object.prototype.hasOwnProperty.call(p.counters, shieldKey)){
+      p.counters[shieldKey] = (p.counters[shieldKey] || 0) + 1;
+    }
+    let readiedCount = 0, tickedCount = 0;
+    ["inPlayBody", "inPlayMind", "inPlaySoul"].forEach(zone => {
+      p[zone].forEach(ci => {
+        if (!ci.tapped) return;
+        if ((ci.counters.white || 0) > 0){
+          ci.counters.white -= 1;
+          tickedCount++;
+        } else {
+          ci.tapped = false;
+          readiedCount++;
+        }
+      });
+    });
+    // Rest verliest ook alle opgespaarde Spite (cfr. regels: "Resting is the
+    // primary way ... but they lose all stored Spite in doing so").
+    p.counters.spite = 0;
+    // Rest herstelt ook de actie-teller: die wordt gelijkgesteld aan de
+    // Body-waarde van de wizard (p.counters.bodyStat).
+    p.counters.actions = p.counters.bodyStat || 0;
+    logAction(`😴 ${p.name} rust — ${shieldLabels[shieldKey] || shieldKey} aangevuld, acties hersteld naar ${p.counters.actions}` +
+      (readiedCount || tickedCount ? ` (${readiedCount} kaart(en) ready, ${tickedCount} tijdteller(s) verwerkt)` : ""), "rest");
+    saveArena();
+    renderArenaBoard();
+  }
+
+  // Klik op "⚡ Actions": verbruikt één actie (teller -1) en tikt bij elk
+  // permanent van deze speler (alle kaarten in play, getapt of niet) een
+  // wit Time Counter weg indien aanwezig — zelfde mechanisme als bij Rest,
+  // maar dan toegepast op alle permanents i.p.v. enkel de getapte.
+  function spendAction(playerIdx){
+    const p = arena.players[playerIdx];
+    if ((p.counters.actions || 0) <= 0) return;
+    let tickedCount = 0;
+    ["inPlayBody", "inPlayMind", "inPlaySoul"].forEach(zone => {
+      p[zone].forEach(ci => {
+        if (!ci.counters) ci.counters = freshCounters();
+        if ((ci.counters.white || 0) > 0){
+          ci.counters.white -= 1;
+          tickedCount++;
+        }
+      });
+    });
+    p.counters.actions = Math.max(0, (p.counters.actions || 0) - 1);
+    logAction(`⚡ ${p.name} gebruikt een actie` + (tickedCount ? ` (${tickedCount} tijdteller(s) verwerkt)` : ""), "action");
+    saveArena();
+    renderArenaBoard();
+  }
+
+  function shuffleZoneIntoDeck(playerIdx, zone){
+    const p = arena.players[playerIdx];
+    if (p[zone].length === 0) return;
+    const count = p[zone].length;
+    p.deck = p.deck.concat(p[zone]);
+    p[zone] = [];
+    shuffleArray(p.deck);
+    logAction(`🔀 ${p.name} schudt ${ZONE_LABELS[zone] || zone} (${count} kaart(en)) terug in het deck`, "shuffle");
+    saveArena();
+    renderArenaBoard();
+  }
+
+  function shuffleDeck(playerIdx){
+    const p = arena.players[playerIdx];
+    shuffleArray(p.deck);
+    logAction(`🔀 ${p.name} schudt het deck`, "shuffle");
+    saveArena();
+    renderArenaBoard();
+  }
+
+  function adjustCounter(playerIdx, key, delta){
+    const c = arena.players[playerIdx].counters;
+    c[key] = Math.max(0, (c[key] || 0) + delta);
+    saveArena();
+    renderArenaBoard();
+  }
+
+  function setCounter(playerIdx, key, value){
+    const c = arena.players[playerIdx].counters;
+    c[key] = Math.max(0, parseInt(value) || 0);
+    saveArena();
+    renderArenaBoard();
+  }
+
+  function buildChipContentHtml(card, inPlay){
+    const cfg = TYPE_CONFIG[card.type] || TYPE_CONFIG.Manifestation;
+    let costTxt = "";
+    if (cfg.cost) costTxt = `${card.actionCost}A` + (card.spiteCost ? ` ${card.spiteCost}S` : "");
+    const statDefs = [
+      ["body", "stat-body", "Body"],
+      ["mind", "stat-mind", "Mind"],
+      ["soul", "stat-soul", "Soul"]
+    ];
+    const statCirclesHtml = inPlay ? `
+      <div class="chip-stat-circles">
+        ${statDefs.map(([key, cls, label]) =>
+          card[key] === "" || card[key] === null || card[key] === undefined
+            ? ""
+            : `<span class="chip-stat-circle ${cls}" title="${label}">${card[key]}</span>`
+        ).join("")}
+      </div>
+    ` : "";
+    return `
+      <div class="chip-name">${escapeHtml(card.name) || "(naamloos)"}</div>
+      <div class="chip-meta"><span>${escapeHtml(card.type)}</span>${(!inPlay && costTxt) ? `<span>${costTxt}</span>` : ""}</div>
+      ${statCirclesHtml}
+    `;
+  }
+
+  function zoneAllowsCounters(zone){
+    return zone === "inPlayBody" || zone === "inPlayMind" || zone === "inPlaySoul";
+  }
+
+  function buildCounterBadgesHtml(ci, zone){
+    if (!zoneAllowsCounters(zone)) return "";
+    const c = ci.counters || freshCounters();
+    if (!c.white && !c.black) return "";
+    let html = `<div class="chip-counters">`;
+    if (c.white) html += `<span class="chip-counter dot-white" data-color="white" title="${c.white}× wit">${c.white > 1 ? c.white : ""}</span>`;
+    if (c.black) html += `<span class="chip-counter dot-black" data-color="black" title="${c.black}× zwart">${c.black > 1 ? c.black : ""}</span>`;
+    html += `</div>`;
+    return html;
+  }
+
+  function buildArenaCardNode(playerIdx, zone, ci, sizeClass){
+    const card = findCard(ci.cardId);
+    const wrap = document.createElement("div");
+    wrap.className = "arena-chip " + sizeClass + (ci.tapped ? " tapped" : "");
+    wrap.dataset.playerIdx = (playerIdx === null || playerIdx === undefined) ? "" : String(playerIdx);
+    wrap.dataset.zone = zone;
+    wrap.dataset.instanceId = ci.instanceId;
+    if (!card){
+      wrap.innerHTML = `<div class="chip-name" style="color:var(--ink-dim);">Verwijderde kaart</div>`;
+    } else {
+      wrap.setAttribute("style", `--type-color: var(${TYPE_COLOR_VAR[card.type] || "--gold"});`);
+      wrap.innerHTML = buildChipContentHtml(card, zoneAllowsCounters(zone)) + (ci.tapped ? `<span class="chip-tapped-tag">TAP</span>` : "") + buildCounterBadgesHtml(ci, zone);
+      wrap.addEventListener("mouseenter", () => showArenaPreview(wrap, card));
+      wrap.addEventListener("mouseleave", hideArenaPreview);
+    }
+    wrap.addEventListener("pointerdown", (e) => startCardDrag(e, wrap, playerIdx, zone, ci));
+    return wrap;
+  }
+
+  let arenaPreviewEl = null;
+  function ensureArenaPreviewEl(){
+    if (!arenaPreviewEl){
+      arenaPreviewEl = document.createElement("div");
+      arenaPreviewEl.id = "arena-hover-preview";
+      document.getElementById("view-arena").appendChild(arenaPreviewEl);
+    }
+    return arenaPreviewEl;
+  }
+
+  function showArenaPreview(triggerEl, card){
+    if (!card) return;
+    const el = ensureArenaPreviewEl();
+    el.innerHTML = buildCardFrameHtml(card);
+    el.style.display = "block";
+    const tr = triggerEl.getBoundingClientRect();
+    requestAnimationFrame(() => {
+      const r = el.getBoundingClientRect();
+      let x = tr.right + 14;
+      let y = tr.top;
+      if (x + r.width > window.innerWidth - 8) x = tr.left - r.width - 14;
+      if (x < 8) x = 8;
+      if (y + r.height > window.innerHeight - 8) y = window.innerHeight - r.height - 8;
+      if (y < 8) y = 8;
+      el.style.left = x + "px";
+      el.style.top = y + "px";
+    });
+  }
+
+  function hideArenaPreview(){
+    if (arenaPreviewEl) arenaPreviewEl.style.display = "none";
+  }
+
+  function renderFaceUpZone(container, playerIdx, zone, list, sizeClass){
+    container.innerHTML = "";
+    if (list.length === 0){
+      const msg = document.createElement("div");
+      msg.className = "zone-empty-msg";
+      msg.textContent = "Leeg";
+      container.appendChild(msg);
+      return;
+    }
+    list.forEach(ci => container.appendChild(buildArenaCardNode(playerIdx, zone, ci, sizeClass)));
+  }
+
+  // Bepaalt of de hand van playerIdx, vanuit het perspectief van deze
+  // client, face-down getoond moet worden: enkel relevant als (a) de
+  // instelling aanstaat, (b) we effectief in netwerkmodus zitten met een
+  // gekende eigen seat (mySeat) — in solo-modus bestuurt dit ene toestel
+  // sowieso beide spelers, dus is er niets te verbergen — en (c) het gaat
+  // om de hand van de ANDERE speler dan mezelf.
+  function isOpponentHand(playerIdx){
+    if (!arena || !arena.settings || !arena.settings.hideOpponentHand) return false;
+    if (soloMode || !mySeat) return false;
+    const myIdx = mySeat === "p1" ? 1 : 0;
+    return playerIdx !== myIdx;
+  }
+
+  // Toont enkel het aantal kaarten in de hand, als rugkantjes zonder enige
+  // kaartinfo en zonder drag/klik-interactie (net als een fysieke hand
+  // tegenover je aan tafel — je ziet hoeveel kaarten, niet welke).
+  function renderFaceDownHandZone(container, count){
+    container.innerHTML = "";
+    if (count === 0){
+      const msg = document.createElement("div");
+      msg.className = "zone-empty-msg";
+      msg.textContent = "Leeg";
+      container.appendChild(msg);
+      return;
+    }
+    for (let i = 0; i < count; i++){
+      const back = document.createElement("div");
+      back.className = "arena-chip chip-hand chip-facedown";
+      back.title = "Kaart van de tegenstander (face-down)";
+      back.innerHTML = `<span class="facedown-sigil">\u27e1</span>`;
+      container.appendChild(back);
+    }
+  }
+
+  function renderPileTopSlot(container, playerIdx, zone, list){
+    container.innerHTML = "";
+    const top = list.length ? list[list.length - 1] : null;
+    const slot = document.createElement("div");
+    slot.className = "arena-chip chip-sm pile-top-chip";
+    slot.title = "Klik om de volledige stapel te bekijken";
+    if (top){
+      const card = findCard(top.cardId);
+      if (card){
+        slot.setAttribute("style", `--type-color: var(${TYPE_COLOR_VAR[card.type] || "--gold"});`);
+        slot.innerHTML = buildChipContentHtml(card);
+      } else {
+        slot.innerHTML = `<div class="chip-name" style="color:var(--ink-dim);">Verwijderde kaart</div>`;
+      }
+    } else {
+      slot.innerHTML = `<div class="chip-name" style="color:var(--ink-dim);">Leeg</div>`;
+    }
+    slot.addEventListener("click", () => openPileView(playerIdx, zone));
+    container.appendChild(slot);
+  }
+
+  // ---- Pile-overlay ----
+  let arenaPileView = null;
+
+  function openPileView(playerIdx, zone){
+    arenaPileView = { playerIdx, zone };
+    renderArenaPileOverlay();
+  }
+
+  function closePileView(){
+    if (!arenaPileView) return;
+    arenaPileView = null;
+    renderArenaPileOverlay();
+  }
+
+  function ensureArenaPileEl(){
+    let el = document.getElementById("arena-pile-overlay");
+    if (!el){
+      el = document.createElement("div");
+      el.id = "arena-pile-overlay";
+      document.getElementById("view-arena").appendChild(el);
+      el.addEventListener("pointerdown", (e) => { if (e.target === el) closePileView(); });
+      document.addEventListener("keydown", (e) => { if (e.key === "Escape" && arenaPileView) closePileView(); });
+    }
+    return el;
+  }
+
+  function renderArenaPileOverlay(){
+    const el = ensureArenaPileEl();
+    if (!arenaPileView){
+      el.classList.remove("open");
+      el.innerHTML = "";
+      return;
+    }
+    const { playerIdx, zone } = arenaPileView;
+    const p = arena.players[playerIdx];
+    const list = p ? p[zone] : null;
+    if (!p || !list){
+      arenaPileView = null;
+      el.classList.remove("open");
+      el.innerHTML = "";
+      return;
+    }
+    const zoneLabel = zone === "discard" ? "Discard" : "Banished";
+    el.classList.add("open");
+    el.innerHTML = `
+      <div class="arena-pile-box">
+        <div class="arena-pile-title">${escapeHtml(zoneLabel)} — ${escapeHtml(p.name)} (${list.length})</div>
+        <div class="arena-pile-grid"></div>
+        ${list.length ? `<button type="button" class="btn" id="pile-shuffle-btn">↺ Meng terug in deck</button>` : ""}
+        <button type="button" class="arena-choice-close" id="pile-close-btn" title="Sluiten">×</button>
+      </div>
+    `;
+    const grid = el.querySelector(".arena-pile-grid");
+    if (list.length === 0){
+      grid.innerHTML = `<div class="zone-empty-msg">Leeg</div>`;
+    } else {
+      list.slice().reverse().forEach(ci => grid.appendChild(buildArenaCardNode(playerIdx, zone, ci, "chip-sm")));
+    }
+    el.querySelector("#pile-close-btn").addEventListener("click", closePileView);
+    const shuffleBtn = el.querySelector("#pile-shuffle-btn");
+    if (shuffleBtn) shuffleBtn.addEventListener("click", () => {
+      shuffleZoneIntoDeck(playerIdx, zone);
+      closePileView();
+    });
+  }
+
+  // ---- Tandwiel-menu: test-instellingen (arena.settings), vlak onder de
+  // spelernaam. Globaal één popover tegelijk open, bijgehouden per playerIdx
+  // zodat 'ie onder het juiste tandwiel (van welke speler ook geklikt werd)
+  // verschijnt — de instellingen zelf zijn wel gedeeld/globaal (arena.
+  // settings), niet per speler. ----
+  let arenaSettingsMenuOpenFor = null; // null | 0 | 1
+
+  function toggleArenaSettingsMenu(playerIdx){
+    arenaSettingsMenuOpenFor = (arenaSettingsMenuOpenFor === playerIdx) ? null : playerIdx;
+    renderArenaBoard();
+  }
+
+  function buildSettingsPopoverHtml(){
+    ensureArenaSettings();
+    const s = arena.settings;
+    return `
+      <div class="player-settings-popover" id="arena-settings-popover">
+        <div class="settings-title">Test-instellingen (hele match)</div>
+        <label><input type="checkbox" id="setting-autopay" ${s.autoPayCost ? "checked" : ""}> Punt 3 — kost automatisch betalen bij casten (Actions/Spite aftrekken)</label>
+        <label><input type="checkbox" id="setting-legality" ${s.enforceCastLegality ? "checked" : ""}> Punt 4 — legaliteit afdwingen (genoeg Actions/Spite, juiste beurt/priority)</label>
+        <label><input type="checkbox" id="setting-resolve" ${s.resolveEnabled ? "checked" : ""}> Resolve-knoppen op de stack toestaan</label>
+        <label><input type="checkbox" id="setting-hideopphand" ${s.hideOpponentHand ? "checked" : ""}> Tegenstanders hand face-down tonen (verberg kaartinfo)</label>
+        <div class="settings-hint">Uit = die controle/knop staat helemaal stil — handig om heel gericht één ding tegelijk te testen. De face-down instelling geldt enkel in netwerkmodus (verbonden met een tegenstander); in solo-test zie je sowieso altijd beide handen.</div>
+      </div>
+    `;
+  }
+
+  function shieldStatusBadge(shieldKey, value){
+    if (value > 0) return "";
+    const labels = { bodyShield: "Vulnerable", mindShield: "Confused", soulShield: "Forlorn" };
+    const label = labels[shieldKey];
+    if (!label) return "";
+    return `<span class="shield-status-badge" title="Schild op 0 — cfr. regels: open voor aanvallen van dit type">${label}</span>`;
+  }
+
+  function renderArenaBoard(){
+    const wrap = document.getElementById("arena-players");
+    wrap.innerHTML = "";
+
+    const displayOrder = arenaFlipped ? [1, 0] : [0, 1];
+
+    displayOrder.forEach((playerIdx, pos) => {
+      const p = arena.players[playerIdx];
+      const isMyTurn = arena.turn === playerIdx;
+      const section = document.createElement("div");
+      section.className = "arena-player" + (pos === 1 ? " mirror-top" : "") + (isMyTurn ? " turn-active" : "");
+      section.dataset.playerIdx = playerIdx;
+
+      const handCounterDefs = [["actions", "Actions", "⚡"], ["spite", "Spite", "🔥"]];
+      const shieldDefs = {
+        body: ["bodyShield", "Body", "🛡️"],
+        mind: ["mindShield", "Mind", "🧠"],
+        soul: ["soulShield", "Soul", "👻"]
+      };
+
+      function statBoxHtml([key, label, icon], extraClass){
+        return `
+          <div class="counter-box${extraClass ? " " + extraClass : ""}" data-key="${key}">
+            <span class="c-icon">${icon}</span>
+            <span class="c-label">${label}</span>
+            <button type="button" class="c-minus">−</button>
+            <input type="number" class="c-value" value="${p.counters[key] || 0}" min="0">
+            <button type="button" class="c-plus">+</button>
+            ${shieldStatusBadge(key, p.counters[key] || 0)}
+          </div>
+        `;
+      }
+
+      function wizardStatRowHtml([key, label]){
+        return `
+          <div class="counter-box wizardstat-box" data-key="${key}">
+            <span class="c-label">${label}</span>
+            <button type="button" class="c-minus">−</button>
+            <input type="number" class="c-value" value="${p.counters[key] || 0}" min="0">
+            <button type="button" class="c-plus">+</button>
+          </div>
+        `;
+      }
+      const wizardStatsHtml = `
+        <div class="p-wizard-stats">
+          ${wizardStatRowHtml(["bodyStat", "Body"])}
+          ${wizardStatRowHtml(["mindStat", "Mind"])}
+          ${wizardStatRowHtml(["soulStat", "Soul"])}
+        </div>
+      `;
+
+      const countersHtml = handCounterDefs.map(def => statBoxHtml(def, def[0] === "actions" ? "counter-box-actions" : "")).join("");
+
+      const isTopPlayer = pos === 0;
+      const bodyStatHtml = statBoxHtml(shieldDefs.body, "counter-box-inplay");
+      const mindStatHtml = statBoxHtml(shieldDefs.mind, "counter-box-inplay");
+      const soulStatHtml = statBoxHtml(shieldDefs.soul, "counter-box-inplay");
+
+      section.innerHTML = `
+        <div class="p-main">
+          <div class="p-sidebar">
+            <div class="p-sidebar-header-row">
+              <div class="mini-zone-label"><span>Deck</span>
+                <button type="button" class="btn shuffle-deck-btn">Schud</button>
+              </div>
+              <div class="mini-zone-label"><span>Discard (${p.discard.length})</span></div>
+            </div>
+            <div class="p-sidebar-grid">
+              <div class="deck-pile" data-dropzone="1" data-zone="deck" title="Klik om te trekken, of sleep een kaart hierheen om ze bovenop te leggen">
+                <span class="sigil2">⟡</span>
+                <span class="count">${p.deck.length}</span>
+                <span class="lbl">kaarten</span>
+              </div>
+              <div class="discard-pile-box" data-zone="discard" data-dropzone="1"></div>
+              <div class="deck-bottom-drop" data-dropzone="1" data-zone="deck-bottom" title="Sleep hier naartoe om onderaan de deck te leggen">⇩ onderaan deck</div>
+              <div class="deck-bottom-drop pile-summary-slot" data-dropzone="1" data-zone="banished" title="Klik om de banished-kaarten te bekijken. Sleep een kaart hierheen om ze te banishen.">Banished (${p.banished.length})</div>
+              <button type="button" class="btn primary inflict-btn" style="width:100%;" title="Plaats een Burden-kaart (curse) rechtstreeks in de discard">☠ Inflict</button>
+              <button type="button" class="btn rest-btn" style="width:100%;" title="Rust: vul één schildje naar keuze aan, verlies alle Spite, herstel de actie-teller naar je Body-waarde, en verwerk tapped kaarten in play (tijdteller kwijt, of ontappen)">😴 Rest</button>
+            </div>
+          </div>
+
+          <div class="p-inplay">
+            <div class="inplay-col">
+              <div class="inplay-col-head"><span>In Play — Body</span><span class="zc">${p.inPlayBody.length}</span></div>
+              ${isTopPlayer ? bodyStatHtml : ""}
+              <div class="zone-cards" data-zone="inPlayBody" data-dropzone="1"></div>
+              ${isTopPlayer ? "" : bodyStatHtml}
+            </div>
+            <div class="inplay-col">
+              <div class="inplay-col-head"><span>In Play — Mind</span><span class="zc">${p.inPlayMind.length}</span></div>
+              ${isTopPlayer ? mindStatHtml : ""}
+              <div class="zone-cards" data-zone="inPlayMind" data-dropzone="1"></div>
+              ${isTopPlayer ? "" : mindStatHtml}
+            </div>
+            <div class="inplay-col">
+              <div class="inplay-col-head"><span>In Play — Soul</span><span class="zc">${p.inPlaySoul.length}</span></div>
+              ${isTopPlayer ? soulStatHtml : ""}
+              <div class="zone-cards" data-zone="inPlaySoul" data-dropzone="1"></div>
+              ${isTopPlayer ? "" : soulStatHtml}
+            </div>
+          </div>
+        </div>
+
+        <div class="p-hand">
+          <div class="p-hand-left">
+            <div class="p-name-col">
+              <span class="p-hand-name">${escapeHtml(p.name)}</span>
+              <button type="button" class="player-settings-gear${arenaSettingsMenuOpenFor === playerIdx ? " menu-open" : ""}" title="Test-instellingen (kost/legaliteit van een cast)">⚙</button>
+              ${arenaSettingsMenuOpenFor === playerIdx ? buildSettingsPopoverHtml() : ""}
+            </div>
+            <div class="p-avatar-slot" title="Klik om een avatar-afbeelding in te stellen">
+              ${p.avatar
+                ? `<img src="${p.avatar}"><button type="button" class="remove-avatar-btn" title="Verwijder avatar">×</button>`
+                : `+ Avatar`}
+            </div>
+            <input type="file" class="avatar-file-input" accept="image/*" style="display:none;">
+            ${wizardStatsHtml}
+          </div>
+
+          <div class="p-hand-center">
+            <div class="p-hand-main">
+              <div class="arena-zone-head"><span class="zt">Hand (${p.hand.length})</span><span class="zc"><button type="button" class="btn end-turn-btn" ${isMyTurn ? "" : "disabled"}>END TURN</button></span></div>
+              <div class="zone-cards" data-zone="hand" data-dropzone="1"></div>
+            </div>
+          </div>
+
+          <div class="p-hand-right">${countersHtml}</div>
+        </div>
+      `;
+
+      section.querySelectorAll(".counter-box").forEach(box => {
+        const key = box.dataset.key;
+        box.querySelector(".c-minus").addEventListener("click", () => adjustCounter(playerIdx, key, -1));
+        box.querySelector(".c-plus").addEventListener("click", () => adjustCounter(playerIdx, key, 1));
+        box.querySelector(".c-value").addEventListener("change", (e) => setCounter(playerIdx, key, e.target.value));
+        if (key === "actions"){
+          box.querySelector(".c-icon").addEventListener("click", () => spendAction(playerIdx));
+          box.querySelector(".c-label").addEventListener("click", () => spendAction(playerIdx));
+        }
+      });
+
+      section.querySelector(".deck-pile").addEventListener("click", () => drawCard(playerIdx));
+      section.querySelector(".shuffle-deck-btn").addEventListener("click", () => shuffleDeck(playerIdx));
+
+      const endTurnBtn = section.querySelector(".end-turn-btn");
+      if (endTurnBtn) endTurnBtn.addEventListener("click", () => endPlayerTurn(playerIdx));
+
+      const inflictBtn = section.querySelector(".inflict-btn");
+      inflictBtn.addEventListener("click", () => openInflictChoice(playerIdx));
+
+      const restBtn = section.querySelector(".rest-btn");
+      restBtn.addEventListener("click", () => openRestChoice(playerIdx));
+
+      section.querySelector(".pile-summary-slot").addEventListener("click", () => openPileView(playerIdx, "banished"));
+
+      const settingsGearBtn = section.querySelector(".player-settings-gear");
+      settingsGearBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggleArenaSettingsMenu(playerIdx);
+      });
+      const settingsPopoverEl = section.querySelector("#arena-settings-popover");
+      if (settingsPopoverEl){
+        settingsPopoverEl.addEventListener("click", (e) => e.stopPropagation());
+        settingsPopoverEl.querySelector("#setting-autopay").addEventListener("change", (e) => {
+          ensureArenaSettings();
+          arena.settings.autoPayCost = e.target.checked;
+          saveArena();
+          renderArenaBoard();
+        });
+        settingsPopoverEl.querySelector("#setting-legality").addEventListener("change", (e) => {
+          ensureArenaSettings();
+          arena.settings.enforceCastLegality = e.target.checked;
+          saveArena();
+          renderArenaBoard();
+        });
+        settingsPopoverEl.querySelector("#setting-resolve").addEventListener("change", (e) => {
+          ensureArenaSettings();
+          arena.settings.resolveEnabled = e.target.checked;
+          saveArena();
+          renderArenaBoard();
+        });
+        settingsPopoverEl.querySelector("#setting-hideopphand").addEventListener("change", (e) => {
+          ensureArenaSettings();
+          arena.settings.hideOpponentHand = e.target.checked;
+          saveArena();
+          renderArenaBoard();
+        });
+      }
+
+      const avatarSlot = section.querySelector(".p-avatar-slot");
+      const avatarInput = section.querySelector(".avatar-file-input");
+      avatarSlot.addEventListener("click", (e) => {
+        if (e.target.classList.contains("remove-avatar-btn")) return;
+        avatarInput.click();
+      });
+      avatarInput.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        resizeAvatarFile(file, (dataUrl) => {
+          arena.players[playerIdx].avatar = dataUrl;
+          saveArena();
+          renderArenaBoard();
+        });
+        e.target.value = "";
+      });
+      const removeBtn = section.querySelector(".remove-avatar-btn");
+      if (removeBtn){
+        removeBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          arena.players[playerIdx].avatar = null;
+          saveArena();
+          renderArenaBoard();
+        });
+      }
+
+      const handIsFaceDown = isOpponentHand(playerIdx);
+      if (handIsFaceDown){
+        renderFaceDownHandZone(section.querySelector('.zone-cards[data-zone="hand"]'), p.hand.length);
+      } else {
+        renderFaceUpZone(section.querySelector('.zone-cards[data-zone="hand"]'), playerIdx, "hand", p.hand, "chip-hand");
+        // Markeert visueel welke kaarten bij END TURN automatisch behouden
+        // blijven: de eerste zoveel kaarten in hand-volgorde, t.e.m. de
+        // Mind-stat van deze speler (zie endPlayerTurn). Herschik kaarten
+        // in de hand (slepen binnen dezelfde strook) om dit aan te passen.
+        // Enkel zinvol op een zichtbare (niet face-down) hand.
+        const mindKeep = p.counters.mindStat || 0;
+        const handChips = section.querySelectorAll('.zone-cards[data-zone="hand"] .arena-chip');
+        handChips.forEach((el, i) => {
+          const keep = i < mindKeep;
+          el.classList.toggle("hand-keep", keep);
+          el.title = keep
+            ? "Blijft behouden bij END TURN (sleep om de volgorde te wijzigen)"
+            : "Wordt gediscard bij END TURN, tenzij je 'm naar voren sleept";
+        });
+      }
+      ["inPlayBody", "inPlayMind", "inPlaySoul"].forEach(zone => {
+        const container = section.querySelector(`.zone-cards[data-zone="${zone}"]`);
+        renderFaceUpZone(container, playerIdx, zone, p[zone], "chip-hand chip-inplay");
+      });
+      renderPileTopSlot(section.querySelector('.discard-pile-box'), playerIdx, "discard", p.discard);
+
+      wrap.appendChild(section);
+      if (pos === 0) wrap.appendChild(buildArenaFountainStrip());
+    });
+
+    renderArenaToolbar();
+    renderArenaZoomOverlay();
+    renderArenaPileOverlay();
+    renderArenaNoticeOverlay();
+  }
+
+  // Bouwt de weergave van één kaart op de stack: de kaartfiche, een
+  // target-label ("pijl") en een Resolve-knop. Enkel de bovenste kaart
+  // (isTop) is "live": de Resolve-knop reageert dan op wie priority heeft.
+  // In netwerkmodus (mySeat bekend) is de knop echt greyed out voor het
+  // client dat niet aan zet is; in solo-modus (één toestel, beide spelers)
+  // blijft ze gewoon altijd klikbaar.
+  function buildStackCardNode(ci, isTop){
+    const wrap = document.createElement("div");
+    wrap.className = "arena-stack-card";
+    wrap.dataset.instanceId = ci.instanceId;
+
+    wrap.appendChild(buildArenaCardNode(null, "stack", ci, "chip-hand"));
+
+    const info = document.createElement("div");
+    info.className = "stack-card-info";
+    const hasCastInfo = ci.casterIdx !== undefined && ci.priorityWith !== undefined;
+    const casterName = (hasCastInfo && arena.players[ci.casterIdx]) ? arena.players[ci.casterIdx].name : null;
+    info.innerHTML = `
+      <div class="stack-target-arrow" title="${escapeHtml(ci.targetLabel || "")}">${ci.targetLabel ? "→ " + escapeHtml(ci.targetLabel) : ""}</div>
+      ${casterName ? `<div class="stack-caster-label">door ${escapeHtml(casterName)}</div>` : ""}
+    `;
+    wrap.appendChild(info);
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn stack-resolve-btn";
+
+    if (isTop && hasCastInfo){
+      const resolveOn = !arena.settings || arena.settings.resolveEnabled !== false;
+      const activeIdx = ci.priorityWith;
+      const activeName = arena.players[activeIdx] ? arena.players[activeIdx].name : "?";
+      const clientSeatIdx = soloMode ? null : (mySeat === "p0" ? 0 : mySeat === "p1" ? 1 : null);
+      const disabledForMe = !resolveOn || (clientSeatIdx !== null && clientSeatIdx !== activeIdx);
+      btn.disabled = disabledForMe;
+      btn.textContent = !resolveOn ? "Resolve" : (disabledForMe ? `Resolve (${activeName})` : "Resolve");
+      btn.title = !resolveOn ? "Resolve-knoppen staan uit (tandwiel-menu)" : `Actief voor ${activeName}`;
+      btn.addEventListener("click", () => resolveStackTop(activeIdx));
+    } else {
+      btn.disabled = true;
+      btn.textContent = "Resolve";
+      btn.title = isTop ? "Kaart zonder priority-info (van vóór deze feature) — sleep 'm handmatig van de stack af." : "Wacht op de kaart(en) erboven";
+    }
+    wrap.appendChild(btn);
+
+    return wrap;
+  }
+
+  function buildArenaFountainStrip(){
+    const strip = document.createElement("div");
+    strip.className = "arena-fountain-strip";
+    strip.innerHTML = `
+      <div class="arena-side-panel log-panel">
+        <div class="side-panel-body" id="arena-log-body"></div>
+      </div>
+      <div class="arena-stack-wrap">
+        <svg viewBox="0 0 200 200" class="arena-fountain-svg" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="100" cy="100" r="98" fill="none" stroke="currentColor" stroke-width="2"/>
+          <circle cx="100" cy="100" r="80" fill="none" stroke="currentColor" stroke-width="1.5"/>
+          <circle cx="100" cy="100" r="62" fill="none" stroke="currentColor" stroke-width="1.5"/>
+          <circle cx="100" cy="100" r="40" fill="none" stroke="currentColor" stroke-width="2"/>
+          <circle cx="100" cy="100" r="14" fill="currentColor"/>
+          <g stroke="currentColor" stroke-width="1.5">
+            <line x1="100" y1="2" x2="100" y2="198"/>
+            <line x1="2" y1="100" x2="198" y2="100"/>
+            <line x1="30.7" y1="30.7" x2="169.3" y2="169.3"/>
+            <line x1="169.3" y1="30.7" x2="30.7" y2="169.3"/>
+          </g>
+        </svg>
+        <div class="arena-stack-zone" data-dropzone="1" data-zone="stack" title="Sleep een kaart hierheen om ze op de stack te spelen — sleep bovenop een kaart die al op de stack ligt om die specifiek te targeten">
+          <span class="stack-empty-msg">Stack</span>
+        </div>
+      </div>
+      <div class="arena-side-panel chat-panel">
+        <div class="side-panel-body" id="arena-chat-body"></div>
+        <div class="arena-chat-inputrow">
+          <input type="text" id="arena-chat-input" placeholder="Bericht…" autocomplete="off">
+          <button type="button" class="btn btn-subtle" id="arena-chat-send">Stuur</button>
+        </div>
+      </div>
+    `;
+
+    const stackZone = strip.querySelector(".arena-stack-zone");
+    const emptyMsg = stackZone.querySelector(".stack-empty-msg");
+    arena.stack.forEach((ci, idx) => stackZone.appendChild(buildStackCardNode(ci, idx === arena.stack.length - 1)));
+    if (arena.stack.length > 0) emptyMsg.style.display = "none";
+
+    renderArenaLogPanel(strip.querySelector("#arena-log-body"));
+    renderArenaChatPanel(strip.querySelector("#arena-chat-body"));
+
+    const chatInput = strip.querySelector("#arena-chat-input");
+    const chatSend = strip.querySelector("#arena-chat-send");
+    function doSendChat(){
+      const val = chatInput.value;
+      if (!val || !val.trim()) return;
+      sendArenaChatMessage(val);
+      chatInput.value = "";
+      chatInput.focus();
+    }
+    chatSend.addEventListener("click", doSendChat);
+    chatInput.addEventListener("keydown", (e) => { if (e.key === "Enter") doSendChat(); });
+
+    return strip;
+  }
+
+  function nowTimeStr(ts){
+    const d = ts ? new Date(ts) : new Date();
+    return d.getHours().toString().padStart(2, "0") + ":" + d.getMinutes().toString().padStart(2, "0");
+  }
+
+  function sendArenaChatMessage(text){
+    if (!arena) return;
+    if (!Array.isArray(arena.chat)) arena.chat = [];
+    const sender = (typeof driveUsernameCache === "string" && driveUsernameCache) ? driveUsernameCache : "Speler";
+    arena.chat.push({ text: text.trim(), sender, time: Date.now() });
+    if (arena.chat.length > 300) arena.chat.splice(0, arena.chat.length - 300);
+    saveArena();
+    renderArenaBoard();
+  }
+
+  function renderArenaLogPanel(el){
+    if (!el) return;
+    const entries = (arena && Array.isArray(arena.log)) ? arena.log : [];
+    el.innerHTML = entries.length
+      ? entries.map(e => `<p class="log-entry"><span class="log-time">${escapeHtml(nowTimeStr(e.time))}</span>${escapeHtml(e.text)}</p>`).join("")
+      : `<span class="log-empty">Nog geen acties.</span>`;
+    requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
+  }
+
+  function renderArenaChatPanel(el){
+    if (!el) return;
+    const entries = (arena && Array.isArray(arena.chat)) ? arena.chat : [];
+    el.innerHTML = entries.length
+      ? entries.map(e => `<p class="chat-entry"><span class="chat-time">${escapeHtml(nowTimeStr(e.time))}</span><span class="chat-sender">${escapeHtml(e.sender || "Speler")}:</span> ${escapeHtml(e.text)}</p>`).join("")
+      : `<span class="chat-empty">Nog geen berichten.</span>`;
+    requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
+  }
+
+  function renderArenaToolbar(){
+    document.getElementById("arena-selected-info").textContent =
+      "Sleep een kaart uit je hand naar een In Play-zone, een specifieke kaart, of een kaart die al op de stack ligt om ze te casten — ze komt op de stack met een target, tot iedereen Resolve klikt. Sleep binnen je hand om te herschikken (eerste kaarten t.e.m. Mind-stat blijven bij END TURN). Klik (zonder te slepen) om te tappen/readyen.";
+  }
+
+  document.getElementById("btn-end-arena").addEventListener("click", () => {
+    if (!confirm("Terug naar instellingen? De huidige wedstrijd (handen, decks, tellers) gaat hierbij verloren, tenzij je een nieuwe start met dezelfde instellingen.")) return;
+    arena = freshSetupArena();
+    saveArena();
+    renderArenaTab();
+  });
+
+  // ---------- Lokaal bewaren + laden (autosave, per browser) ----------
+  const ARENA_STORAGE_KEY = "wizards_test_arena_autosave_v1";
+  const ARENA_FLIP_KEY = "wizards_test_arena_flip_v1";
+  let arena = null;
+
+  let arenaFlipped = false;
+  try { arenaFlipped = localStorage.getItem(ARENA_FLIP_KEY) === "1"; }
+  catch (e){ arenaFlipped = false; }
+
+  function toggleArenaFlip(){
+    arenaFlipped = !arenaFlipped;
+    try { localStorage.setItem(ARENA_FLIP_KEY, arenaFlipped ? "1" : "0"); }
+    catch (e){ /* ignore */ }
+    if (arena) renderArenaTab();
+  }
+
+  function saveArena(){
+    try { localStorage.setItem(ARENA_STORAGE_KEY, JSON.stringify(arena)); } catch (e) { /* ignore */ }
+    mpBroadcastState();
+  }
+
+  function loadArena(){
+    try {
+      const saved = localStorage.getItem(ARENA_STORAGE_KEY);
+      if (saved) arena = JSON.parse(saved);
+    } catch (e) { arena = null; }
+    if (!arena){ arena = freshSetupArena(); return; }
+    if (arena.phase === "board" && arena.players){
+      arena.players.forEach(p => {
+        if (!p.inPlayBody) p.inPlayBody = [];
+        if (!p.inPlayMind) p.inPlayMind = [];
+        if (!p.inPlaySoul) p.inPlaySoul = [];
+        if (p.avatar === undefined) p.avatar = null;
+        if (!p.counters) p.counters = {};
+        ["bodyStat", "mindStat", "soulStat", "bodyShield", "mindShield", "soulShield", "actions", "spite"].forEach(k => { if (p.counters[k] === undefined) p.counters[k] = 0; });
+        ["deck","hand","inPlayBody","inPlayMind","inPlaySoul","discard","banished"].forEach(zone => {
+          (p[zone] || []).forEach(ci => { if (!ci.counters) ci.counters = freshCounters(); });
+        });
+      });
+      if (!Array.isArray(arena.stack)) arena.stack = [];
+      arena.stack.forEach(ci => { if (!ci.counters) ci.counters = freshCounters(); });
+      if (!Array.isArray(arena.log)) arena.log = [];
+      if (!Array.isArray(arena.chat)) arena.chat = [];
+      if (arena.turn !== 0 && arena.turn !== 1) arena.turn = 0;
+      ensureArenaSettings();
+    } else if (arena.phase !== "setup") {
+      arena = freshSetupArena();
+    } else if (!arena.seats) {
+      arena.seats = { p0: null, p1: null };
+    }
+  }
+
+  function toggleZenMode(){
+    const nowActive = !document.body.classList.contains("zen-mode");
+    document.body.classList.toggle("zen-mode", nowActive);
+    if (nowActive){
+      const el = document.getElementById("view-arena");
+      if (el && el.requestFullscreen) el.requestFullscreen().catch(() => {});
+    } else if (document.fullscreenElement && document.exitFullscreen){
+      document.exitFullscreen().catch(() => {});
+    }
+  }
+  // Sluit het tandwiel-popover bij klik erbuiten of Escape.
+  document.addEventListener("click", (e) => {
+    if (arenaSettingsMenuOpenFor === null) return;
+    if (e.target.closest(".player-settings-gear") || e.target.closest(".player-settings-popover")) return;
+    arenaSettingsMenuOpenFor = null;
+    if (arena && arena.phase === "board") renderArenaBoard();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && arenaSettingsMenuOpenFor !== null){
+      arenaSettingsMenuOpenFor = null;
+      if (arena && arena.phase === "board") renderArenaBoard();
+    }
+  });
+
+  document.getElementById("btn-zen").addEventListener("click", toggleZenMode);
+  document.getElementById("btn-arena-flip").addEventListener("click", toggleArenaFlip);
+  document.addEventListener("fullscreenchange", () => {
+    if (!document.fullscreenElement) document.body.classList.remove("zen-mode");
+  });
+
+  // ---------- Multiplayer sync (dumb relay, zie server.js) ----------
+  // Zelfde filosofie als voorheen: elke lokale wijziging aan `arena` loopt
+  // door saveArena(), en die stuurt na elke wijziging de VOLLEDIGE arena
+  // naar de server, die 'm doorstuurt naar de andere speler in de room. De
+  // ontvanger overschrijft gewoon zijn eigen `arena` met wat binnenkomt.
+  // Nieuw t.o.v. de oude versie: dit geldt nu ook al TIJDENS de setup-fase
+  // (arena.phase === "setup"), niet enkel eens het bord bestaat — zo kan elke
+  // speler zijn eigen naam+deck kiezen en ziet de ander dat verschijnen,
+  // zonder dat de relay-server enig nieuw berichttype hoeft te kennen.
+  const MP_SETTINGS_KEY = "wizards_arena_mp_settings_v1";
+  let mpSocket = null;
+  let mpConnected = false;
+  let mpIntentionalDisconnect = false;
+  let mpReconnectTimer = null;
+  let mpSuppressBroadcast = false;
+  let mpAwaitingInitialState = false;
+  let mpInitialStateTimer = null;
+
+  const MP_DEFAULT_SERVER_URL = "wss://wizards-arena.onrender.com";
+  const MP_DEFAULT_ROOM = "ROOM";
+
+  function loadMpSettings(){
+    try {
+      const saved = JSON.parse(localStorage.getItem(MP_SETTINGS_KEY) || "{}");
+      return { serverUrl: saved.serverUrl || MP_DEFAULT_SERVER_URL, room: saved.room || MP_DEFAULT_ROOM };
+    } catch (e){ return { serverUrl: MP_DEFAULT_SERVER_URL, room: MP_DEFAULT_ROOM }; }
+  }
+
+  function saveMpSettings(serverUrl, room){
+    try { localStorage.setItem(MP_SETTINGS_KEY, JSON.stringify({ serverUrl, room })); }
+    catch (e){ /* ignore */ }
+  }
+
+  function mpSetStatus(text, cls){
+    ["mp-status-setup", "mp-status-board"].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = text;
+      el.className = "mp-status" + (cls ? " " + cls : "");
+    });
+  }
+
+  function mpUpdateButtons(){
+    const showConnect = !mpConnected;
+    const connectBtn = document.getElementById("mp-btn-connect-setup");
+    const disconnectSetupBtn = document.getElementById("mp-btn-disconnect-setup");
+    const disconnectBoardBtn = document.getElementById("mp-btn-disconnect-board");
+    if (connectBtn) connectBtn.style.display = showConnect ? "inline-block" : "none";
+    if (disconnectSetupBtn) disconnectSetupBtn.style.display = showConnect ? "none" : "inline-block";
+    if (disconnectBoardBtn) disconnectBoardBtn.style.display = showConnect ? "none" : "inline-block";
+  }
+
+  function mpRandomRoomCode(){
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let code = "";
+    for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    return code;
+  }
+
+  function mpConnect(){
+    const urlInput = document.getElementById("mp-server-url");
+    const roomInput = document.getElementById("mp-room-code");
+    const url = (urlInput.value || "").trim();
+    const room = (roomInput.value || "").trim();
+    if (!url || !room){
+      mpSetStatus("Vul zowel server-adres als roomcode in.", "err");
+      return;
+    }
+    saveMpSettings(url, room);
+    mpIntentionalDisconnect = false;
+    mpOpenSocket(url, room);
+  }
+
+  function mpDisconnect(){
+    mpIntentionalDisconnect = true;
+    if (mpReconnectTimer){ clearTimeout(mpReconnectTimer); mpReconnectTimer = null; }
+    if (mpInitialStateTimer){ clearTimeout(mpInitialStateTimer); mpInitialStateTimer = null; }
+    if (mpSocket){ try { mpSocket.close(); } catch (e){ /* ignore */ } }
+    mpSocket = null;
+    mpConnected = false;
+    mySeat = null;
+    mpSetStatus("Niet verbonden.", "");
+    mpUpdateButtons();
+    if (arena && arena.phase === "setup") renderArenaSetup();
+  }
+
+  // Claimt mijn seat zodra duidelijk is of ik de eerste of tweede
+  // aanwezige ben in deze room (zie uitleg bij "mySeat" hierboven).
+  function mpClaimSeatAndInit(){
+    if (soloMode) return;
+    if (arena && arena.phase === "board") return; // een match is al bezig, niets te claimen
+    if (arena && arena.phase === "setup" && arena.seats){
+      if (!arena.seats.p0){ mySeat = "p0"; }
+      else if (!arena.seats.p1){ mySeat = "p1"; }
+      else { mySeat = null; mpSetStatus("Deze room heeft al twee spelers.", "err"); return; }
+    } else {
+      arena = freshSetupArena();
+      mySeat = "p0";
+    }
+    pushMySeat();
+  }
+
+  function mpOpenSocket(url, room){
+    mpSetStatus("Verbinden…", "busy");
+    let socket;
+    try { socket = new WebSocket(url); }
+    catch (e){ mpSetStatus("Ongeldig server-adres.", "err"); return; }
+    mpSocket = socket;
+
+    socket.addEventListener("open", () => {
+      mpConnected = true;
+      mpUpdateButtons();
+      mpSetStatus(`Verbonden — room "${room}". Wachten op tegenstander…`, "ok");
+      socket.send(JSON.stringify({ type: "join", room: room }));
+
+      if (arena && arena.phase === "board"){
+        // Een match loopt al (bv. herverbinden na een korte hik): meteen
+        // onze huidige stand aanbieden, net als voorheen.
+        socket.send(JSON.stringify({ type: "arena-state", arena: arena }));
+      } else if (!soloMode) {
+        // Nog geen bekende stand: wacht kort op wat de server ons stuurt
+        // (de laatst bekende stand van de room, indien aanwezig). Komt er
+        // niets, dan zijn we de eerste hier en claimen we p0.
+        mpAwaitingInitialState = true;
+        if (mpInitialStateTimer) clearTimeout(mpInitialStateTimer);
+        mpInitialStateTimer = setTimeout(() => {
+          if (mpAwaitingInitialState){
+            mpAwaitingInitialState = false;
+            mpClaimSeatAndInit();
+            renderArenaSetup();
+          }
+        }, 700);
+      }
+    });
+
+    socket.addEventListener("message", (ev) => {
+      let msg;
+      try { msg = JSON.parse(ev.data); } catch (e){ return; }
+      if (msg.type === "arena-state"){
+        if (mpAwaitingInitialState){
+          mpAwaitingInitialState = false;
+          if (mpInitialStateTimer){ clearTimeout(mpInitialStateTimer); mpInitialStateTimer = null; }
+        }
+        mpApplyRemoteState(msg.arena);
+      } else if (msg.type === "peer-count"){
+        const count = msg.count || 1;
+        mpSetStatus(
+          count > 1
+            ? `Verbonden — room "${room}" — tegenstander aanwezig.`
+            : `Verbonden — room "${room}" — wachten op tegenstander…`,
+          "ok"
+        );
+      }
+    });
+
+    socket.addEventListener("close", () => {
+      mpConnected = false;
+      mpUpdateButtons();
+      if (!mpIntentionalDisconnect){
+        mpSetStatus("Verbinding verbroken — opnieuw proberen…", "err");
+        mpReconnectTimer = setTimeout(() => mpOpenSocket(url, room), 2000);
+      }
+    });
+
+    socket.addEventListener("error", () => {
+      mpSetStatus("Verbindingsfout — controleer het server-adres.", "err");
+    });
+  }
+
+  function mpBroadcastState(){
+    if (mpSuppressBroadcast) return;
+    if (!mpConnected || !mpSocket || mpSocket.readyState !== WebSocket.OPEN) return;
+    try { mpSocket.send(JSON.stringify({ type: "arena-state", arena: arena })); }
+    catch (e){ /* ignore */ }
+  }
+
+  function mpApplyRemoteState(remoteArena){
+    mpSuppressBroadcast = true;
+    const wasSetupWaitingForSeat = !arena || arena.phase !== "board";
+    arena = remoteArena;
+    if (arena && arena.phase === "board") ensureArenaSettings();
+    if (arena && arena.phase === "setup" && arena.seats && wasSetupWaitingForSeat && !soloMode){
+      // Als ik nog geen seat had (bv. ik was de tweede binnenkomer en dit is
+      // de eerste stand die ik ontvang), claim ik hier alsnog mijn plekje —
+      // en meld dat meteen terug zodat de eerste speler mijn keuze ook ziet.
+      if (!mySeat){
+        if (!arena.seats.p0) mySeat = "p0";
+        else if (!arena.seats.p1) mySeat = "p1";
+        if (mySeat) arena.seats[mySeat] = currentMySeatPick();
+      }
+    }
+    saveArena();
+    renderArenaTab();
+    mpSuppressBroadcast = false;
+  }
+
+  (function initMultiplayerUi(){
+    const settings = loadMpSettings();
+    const urlInput = document.getElementById("mp-server-url");
+    const roomInput = document.getElementById("mp-room-code");
+    if (urlInput) urlInput.value = settings.serverUrl;
+    if (roomInput) roomInput.value = settings.room;
+
+    document.getElementById("mp-btn-connect-setup").addEventListener("click", mpConnect);
+    document.getElementById("mp-btn-disconnect-setup").addEventListener("click", mpDisconnect);
+    document.getElementById("mp-btn-disconnect-board").addEventListener("click", mpDisconnect);
+    document.getElementById("mp-btn-random-room").addEventListener("click", () => {
+      roomInput.value = mpRandomRoomCode();
+    });
+  })();
+
+  // ---------- Login / Drive-sync (gedeelde module) ----------
+  let driveUsernameCache = "";
+
+  if (window.self !== window.top){
+    const bar = document.getElementById("drive-bar");
+    if (bar) bar.style.display = "none";
+  }
+
+  DriveAuth.initLoginOverlay({
+    appTitle: "Wizards — Test-arena",
+    onSuccess: function(data, session){
+      // De hoed-avatarbubbel wordt al centraal gerenderd door
+      // shared/drive-auth.js (updateDriveUserLabel), vóór deze callback
+      // — hier is dus niets extra's meer nodig.
+      driveUsernameCache = session.username || "";
+
+      collection = Array.isArray(data.collection) ? data.collection.map(normalizeCard) : [];
+      loadDecks();
+      loadArena();
+
+      const myNameInput = document.getElementById("my-name");
+      if (myNameInput && !myNameInput.value) myNameInput.value = driveUsernameCache || "Speler 1";
+
+      renderArenaTab();
+    }
+  });
+
+  // Kruis-module boodschap: als de shell (index.html) dit bestand ooit in
+  // een iframe host, kan een andere module later "wizards:edit-card"-achtige
+  // berichten sturen — nu nog niet gebruikt door arena.html, maar de
+  // postMessage-listener in de shell verwacht geen antwoord van hier, dus
+  // er is niets extra te doen.
+
+})();
+
+</script>
+</body>
+</html>

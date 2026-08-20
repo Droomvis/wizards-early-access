@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="30%" r="80%">
+      <stop offset="0%" stop-color="#241d33"/>
+      <stop offset="100%" stop-color="#15121c"/>
+    </radialGradient>
+  </defs>
+  <rect width="192" height="192" rx="36" fill="url(#bg)"/>
+  <rect x="4" y="4" width="184" height="184" rx="33" fill="none" stroke="#c9a24b" stroke-width="2" opacity="0.55"/>
+  <text x="96" y="128" font-family="Georgia, 'Iowan Old Style', 'Palatino Linotype', serif" font-size="112" text-anchor="middle" fill="#e2c583">⟡</text>
+</svg>

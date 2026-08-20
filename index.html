@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wizards</title>
+<link rel="stylesheet" href="shared/login-overlay.css">
+<link rel="stylesheet" href="shared/hat-avatar.css">
+<style>
+  :root{
+    --bg: #15121c;
+    --bg-vignette: radial-gradient(ellipse at 50% -10%, #241d33 0%, #15121c 55%);
+    --panel: #1e1a29;
+    --panel-2: #241f33;
+    --border: #362c49;
+    --border-soft: #2a2338;
+    --ink-light: #d9d2e8;
+    --ink-muted: #9788b3;
+    --ink-dim: #6f6288;
+    --gold: #c9a24b;
+    --gold-soft: #e2c583;
+    --parchment: #efe6d1;
+    --parchment-dark: #e2d5b5;
+    --parchment-ink: #2c2318;
+    --parchment-chip: #b7a578;
+    --parchment-chip-border: #8f7d4f;
+
+    --c-wizard: #3d5a80;
+    --c-manifestation: #3f6b4a;
+    --c-incantation: #9c3b4f;
+    --c-hex: #5b4b8a;
+    --c-destiny: #b8933a;
+    --c-burden: #5c4a3a;
+
+    --t-fire: #c1462b;
+    --t-earth: #6b5636;
+    --t-water: #2f6f8f;
+    --t-sky: #6fa8c9;
+    --t-shadow: #4a3a5c;
+    --t-light: #b9a666;
+
+    --font-display: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', serif;
+    --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: 'SF Mono', Consolas, Monaco, monospace;
+  }
+
+  *{ box-sizing: border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background: var(--bg-vignette);
+    color: var(--ink-light);
+    font-family: var(--font-ui);
+    min-height:100vh;
+  }
+
+  #app{ display:flex; flex-direction:column; min-height:100vh; }
+
+  header{
+    display:flex; align-items:center; gap:20px; flex-wrap:wrap;
+    padding:18px 24px;
+    border-bottom:1px solid var(--border);
+    background: linear-gradient(180deg, #1a1626, #15121c);
+  }
+  header .brand{ display:flex; align-items:baseline; gap:10px; margin-right:auto; }
+  header .brand h1{
+    font-family: var(--font-display);
+    font-size:22px; margin:0; letter-spacing:0.5px; color:var(--gold-soft);
+    font-weight:600;
+  }
+  header .brand .sigil{ color:var(--gold); font-size:16px; }
+  header .brand small{ color: var(--ink-dim); font-size:12px; display:block; margin-top:2px; }
+
+  .btn{
+    font-family: var(--font-ui);
+    font-size:13px;
+    background: var(--panel-2);
+    color: var(--ink-light);
+    border:1px solid var(--border);
+    padding:8px 14px;
+    border-radius:5px;
+    cursor:pointer;
+    transition: border-color .15s, background .15s;
+    white-space:nowrap;
+  }
+  .btn:hover{ border-color: var(--gold); background:#2a2338; }
+  .btn.primary{ background: linear-gradient(180deg,#2f2743,#251f38); border-color: var(--gold); color: var(--gold-soft); }
+  .btn.primary:hover{ background:#352c4b; }
+
+  #tab-bar{
+    display:flex; gap:6px; flex-wrap:wrap; align-items:center;
+  }
+  .tab-btn{
+    background:none; border:1px solid var(--border); color: var(--ink-dim);
+    padding:7px 13px; border-radius:16px; cursor:pointer; font-size:12.5px;
+    font-family: var(--font-ui);
+  }
+  .tab-btn:hover{ color: var(--ink-light); border-color: var(--border-soft); }
+  .tab-btn.active{
+    color: var(--gold-soft); background: rgba(226,197,131,0.12); border-color: var(--gold);
+  }
+
+  .tab-view{ display:none; flex:1; min-height:0; }
+  .tab-view.active{ display:flex; }
+  .tab-view iframe{
+    flex:1; width:100%; border:none; min-height:calc(100vh - 130px);
+    background: var(--bg);
+  }
+  .tab-view-empty{
+    flex:1; display:flex; align-items:center; justify-content:center;
+    color: var(--ink-dim); font-size:13px;
+  }
+
+  .login-remember-row{
+    display:flex; align-items:center; gap:8px;
+    font-size:13px; color: var(--ink-muted);
+    margin:2px 0 4px;
+    cursor:pointer;
+  }
+  .login-remember-row input[type="checkbox"]{
+    accent-color: var(--gold);
+    width:15px; height:15px; margin:0; cursor:pointer;
+  }
+  .login-forget-link{
+    display:block;
+    text-align:center;
+    font-size:12px;
+    color: var(--ink-dim);
+    margin-top:8px;
+    text-decoration:underline;
+    cursor:pointer;
+  }
+  .login-forget-link:hover{ color: var(--gold-soft); }
+
+  /* ---------- Drive-bar. Bevat ook de Save/Laad-knoppen voor de collectie-
+     .json (verplaatst hierheen uit de Kaartbuilder-module op 2026-08-17, zodat
+     ze op elk tabblad zichtbaar/bruikbaar zijn i.p.v. een aparte balk in de
+     Kaartbuilder-iframe). Deze knoppen sturen enkel commando's via postMessage
+     naar de Kaartbuilder-iframe (die de collectie in geheugen heeft en weet
+     hoe met Drive te praten) — zie mountDriveActionsBar() hieronder. ---------- */
+  #drive-bar{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    padding:9px 24px; border-bottom:1px solid var(--border); background:#191423;
+  }
+  #drive-actions{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+
+  @media (max-width: 640px){
+    header{ padding:14px 16px; gap:10px; }
+    header .brand{ margin-right:0; }
+    header .brand small{ display:none; }
+    #tab-bar{ width:100%; gap:6px; }
+    .tab-btn{ padding:8px 11px; font-size:12.5px; }
+    #drive-bar{ padding:9px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="login-overlay">
+  <div class="login-card">
+    <div class="login-sigil">⟡</div>
+    <h2>Wizards</h2>
+    <p class="login-sub">Log in om verder te gaan.</p>
+
+    <div id="login-form-fields">
+      <label for="login-username">Naam</label>
+      <input type="text" id="login-username" placeholder="Je naam (vrij te kiezen)" autocomplete="off">
+      <label for="login-password">Wachtwoord</label>
+      <input type="password" id="login-password" placeholder="Wachtwoord voor de Drive-sync" autocomplete="off">
+      <label class="login-remember-row" for="login-remember">
+        <input type="checkbox" id="login-remember">
+        Wachtwoord onthouden op dit apparaat
+      </label>
+      <button class="btn primary" id="btn-login">Inloggen</button>
+      <a href="#" id="btn-login-forget" class="login-forget-link" style="display:none;">Onthouden wachtwoord vergeten</a>
+      <button type="button" class="btn" id="btn-customise-character" style="margin-top:8px;">🧙 Customise character</button>
+    </div>
+
+    <div id="login-status"></div>
+
+    <div id="login-lastedit" style="display:none;">
+      <p id="login-lastedit-text"></p>
+      <button class="btn primary" id="btn-login-continue">Verdergaan</button>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <div class="brand">
+      <span class="sigil">⟡</span>
+      <div>
+        <h1>Wizards</h1>
+        <small>Kaartbuilder &middot; Collectie &amp; Decks &middot; Council &middot; Arena</small>
+      </div>
+    </div>
+    <div id="tab-bar">
+      <button class="tab-btn active" data-tab="builder">Kaartbuilder</button>
+      <button class="tab-btn" data-tab="collection">Collectie &amp; Decks</button>
+      <button class="tab-btn" data-tab="council">Wizard Council</button>
+      <button class="tab-btn" data-tab="arena">Test-arena</button>
+    </div>
+  </header>
+
+  <div id="drive-bar">
+    <span id="drive-user-label"></span>
+    <span id="drive-status"></span>
+    <div id="drive-actions"></div>
+  </div>
+
+  <div id="view-builder" class="tab-view active">
+    <iframe id="frame-builder" title="Kaartbuilder"></iframe>
+  </div>
+  <div id="view-collection" class="tab-view">
+    <iframe id="frame-collection" title="Collectie"></iframe>
+  </div>
+  <div id="view-council" class="tab-view">
+    <iframe id="frame-council" title="Wizard Council"></iframe>
+  </div>
+  <div id="view-arena" class="tab-view">
+    <iframe id="frame-arena" title="Test-arena"></iframe>
+  </div>
+</div>
+
+<script src="shared/hat-avatar.js"></script>
+<script src="shared/drive-auth.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  // ---------- "Customise character" op het login-scherm ----------
+  // Nog geen bevestigde gebruikersnaam op dit punt: de hoed wordt lokaal
+  // als "pending" draft bewaard. Zodra de speler nadien inlogt, synchroniseert
+  // drive-auth.js die automatisch (éénmalig, enkel als er nog geen hoed voor
+  // die naam bestaat) naar de Drive-JSON — zie de "pendingHat"-afhandeling
+  // in shared/drive-auth.js.
+  const btnCustomise = document.getElementById("btn-customise-character");
+  if (btnCustomise){
+    btnCustomise.addEventListener("click", function(){
+      const nameInput = document.getElementById("login-username");
+      const typedName = nameInput ? nameInput.value.trim() : "";
+      HatAvatar.openCustomizer({
+        username: "", // leeg = "pending" draft, nog niet gekoppeld aan een naam
+        config: HatAvatar.getPendingDraft() || (typedName ? HatAvatar.getConfig(typedName) : HatAvatar.randomConfig()),
+        onSave: function(){ /* niets extra: bubbel verschijnt pas na inloggen */ }
+      });
+    });
+  }
+
+  // ---------- Drive Save/Laad-knoppen (centraal in de shell, 2026-08-17) ----------
+  // Deze balk staat hier i.p.v. in de Kaartbuilder-iframe, zodat hij op elk
+  // tabblad zichtbaar/bruikbaar is (bv. vanuit Collectie eventjes "Laden
+  // vanuit Drive" doen). De knoppen sturen enkel een postMessage-commando
+  // naar de Kaartbuilder-iframe: die houdt de collectie in geheugen bij en
+  // weet hoe hij met Drive moet praten (zie cardbuilder.html, blok
+  // "Reageert op commando's vanuit de shell").
+  const BUILDER_SRC = "cardbuilder.html";
+
+  function buildDropdown(label, primary, items){
+    const wrap = document.createElement("div");
+    wrap.style.cssText = "position:relative; display:inline-block;";
+
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.textContent = label + " \u25BE";
+    toggle.style.cssText = "font-family:var(--font-ui); font-size:13px; cursor:pointer; white-space:nowrap;" +
+      "border-radius:5px; padding:8px 14px; transition:border-color .15s, background .15s;" +
+      (primary
+        ? "background:linear-gradient(180deg,#2f2743,#251f38); border:1px solid var(--gold); color:var(--gold-soft);"
+        : "background:var(--panel-2); border:1px solid var(--border); color:var(--ink-light);");
+
+    const list = document.createElement("div");
+    list.style.cssText = "display:none; position:absolute; top:calc(100% + 4px); left:0; z-index:20; min-width:220px;" +
+      "background:var(--panel); border:1px solid var(--border); border-radius:7px; padding:5px;" +
+      "box-shadow:0 10px 24px rgba(0,0,0,0.45); flex-direction:column; gap:2px;";
+
+    items.forEach(item => {
+      let itemEl;
+      if (item.fileInput){
+        itemEl = document.createElement("label");
+        itemEl.style.cssText = "position:relative; overflow:hidden; display:block; font-size:13px; color:var(--ink-light);" +
+          "padding:8px 10px; border-radius:5px; cursor:pointer; white-space:nowrap;";
+        itemEl.textContent = item.label;
+        itemEl.addEventListener("mouseenter", () => { itemEl.style.background = "#2a2338"; });
+        itemEl.addEventListener("mouseleave", () => { itemEl.style.background = "none"; });
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = "application/json,.json";
+        input.multiple = true;
+        input.style.cssText = "position:absolute; inset:0; opacity:0; cursor:pointer; font-size:200px;";
+        input.addEventListener("change", (e) => {
+          if (e.target.files && e.target.files.length) item.onFiles(Array.from(e.target.files));
+          e.target.value = "";
+        });
+        itemEl.appendChild(input);
+      } else {
+        itemEl = document.createElement("button");
+        itemEl.type = "button";
+        itemEl.textContent = item.label;
+        itemEl.style.cssText = "display:block; width:100%; text-align:left; font-size:13px; color:var(--ink-light);" +
+          "background:none; border:none; padding:8px 10px; border-radius:5px; cursor:pointer; white-space:nowrap;";
+        itemEl.addEventListener("mouseenter", () => { itemEl.style.background = "#2a2338"; });
+        itemEl.addEventListener("mouseleave", () => { itemEl.style.background = "none"; });
+        itemEl.addEventListener("click", item.onClick);
+      }
+      list.appendChild(itemEl);
+    });
+
+    function closeDropdown(){ list.style.display = "none"; }
+
+    toggle.addEventListener("click", (e) => {
+      e.stopPropagation();
+      list.style.display = (list.style.display === "flex") ? "none" : "flex";
+    });
+
+    wrap.appendChild(toggle);
+    wrap.appendChild(list);
+    wrap._toggle = toggle;
+    wrap._closeDropdown = closeDropdown;
+    return wrap;
+  }
+
+  // Stuurt een commando naar de Kaartbuilder-iframe. Laadt hem eerst
+  // (op de achtergrond, zonder van tabblad te wisselen) als dat nog niet
+  // gebeurd is — zo werkt "Laden vanuit Drive" ook meteen als je bv. nog op
+  // Collectie staat en de Kaartbuilder-tab nog niet geopend hebt.
+  function sendToBuilder(message){
+    const frame = document.getElementById("frame-builder");
+    if (!frame) return;
+    function send(){ frame.contentWindow.postMessage(message, "*"); }
+    if (!frame.getAttribute("src")){
+      frame.setAttribute("src", BUILDER_SRC);
+      frame.addEventListener("load", () => { frame.dataset.loaded = "1"; send(); }, { once: true });
+    } else if (frame.dataset.loaded === "1"){
+      send();
+    } else {
+      frame.addEventListener("load", () => { frame.dataset.loaded = "1"; send(); }, { once: true });
+    }
+  }
+
+  function mountDriveActionsBar(){
+    const container = document.getElementById("drive-actions");
+    if (!container || container.dataset.mounted === "1") return;
+    container.dataset.mounted = "1";
+
+    const saveMenu = buildDropdown("\uD83D\uDCBE Save .json", true, [
+      { label: "\u2B06\uFE0F Naar Drive", onClick: () => sendToBuilder({ type: "wizards:drive-save-to-drive" }) },
+      { label: "\u2B07\uFE0F Lokaal", onClick: () => sendToBuilder({ type: "wizards:drive-save-local" }) }
+    ]);
+    const loadMenu = buildDropdown("\uD83D\uDCC2 Laad .json", false, [
+      { label: "\u2B07\uFE0F Van Drive", onClick: () => sendToBuilder({ type: "wizards:drive-load-from-drive" }) },
+      { label: "\uD83D\uDCC1 Van lokaal", fileInput: true, onFiles: (files) => sendToBuilder({ type: "wizards:drive-load-local-files", files: files }) },
+      { label: "\uD83D\uDD00 Samenvoegen met Drive", onClick: () => sendToBuilder({ type: "wizards:drive-merge" }) }
+    ]);
+
+    const dropdowns = [saveMenu, loadMenu];
+    dropdowns.forEach(d => {
+      d._toggle.addEventListener("click", () => {
+        dropdowns.forEach(other => { if (other !== d) other._closeDropdown(); });
+      });
+    });
+
+    container.appendChild(saveMenu);
+    container.appendChild(loadMenu);
+    document.addEventListener("click", () => { dropdowns.forEach(d => d._closeDropdown()); });
+  }
+
+  DriveAuth.initLoginOverlay({
+    appTitle: "Wizards",
+    onSuccess: function(){
+      // De volledige sync is al opgehaald door DriveAuth (arena-gedrag) en
+      // staat klaar in sessionStorage. Elke module haalt die zelf op zodra
+      // zijn tab voor het eerst geopend wordt (lazy) — hier wordt dus bewust
+      // niets gerenderd.
+      mountDriveActionsBar();
+      DriveAuth.wireLazyTabs({
+        tabBarSelector: "#tab-bar",
+        panes: {
+          builder:    { view: "#view-builder",    iframe: "#frame-builder",    src: "cardbuilder.html" },
+          collection: { view: "#view-collection", iframe: "#frame-collection", src: "collectie.html" },
+          council:    { view: "#view-council",    iframe: "#frame-council",    src: "council.html" },
+          arena:      { view: "#view-arena",      iframe: "#frame-arena",      src: "arena.html" }
+        },
+        defaultTab: "builder"
+      });
+
+      // ---------- Kruis-module boodschappen ----------
+      // Sommige acties in de ene module moeten iets teweegbrengen in een
+      // andere (bv. "bewerk deze kaart" klikken in Collectie moet de
+      // Kaartbuilder-tab openen én daar die kaart selecteren). Iframes zijn
+      // afzonderlijke documenten, dus dat verloopt via postMessage: de shell
+      // fungeert hier als kleine "postbode" tussen de modules.
+      window.addEventListener("message", function(e){
+        if (!e.data || typeof e.data !== "object") return;
+
+        if (e.data.type === "wizards:hat-updated"){
+          // Doorsturen naar alle module-iframes zodat hun eigen drive-bar-
+          // bubbel (en, voor Council, de peer-avatars) meteen mee-updaten.
+          ["frame-builder", "frame-collection", "frame-council", "frame-arena"].forEach(function(id){
+            const f = document.getElementById(id);
+            if (f && f.contentWindow) f.contentWindow.postMessage(e.data, "*");
+          });
+          return;
+        }
+
+        if (e.data.type === "wizards:edit-card"){
+          const builderBtn = document.querySelector('.tab-btn[data-tab="builder"]');
+          if (builderBtn) builderBtn.click();
+          const frame = document.getElementById("frame-builder");
+          if (!frame) return;
+          const send = () => frame.contentWindow.postMessage({ type: "wizards:select-card", cardId: e.data.cardId }, "*");
+          if (frame.dataset.loaded === "1") send();
+          else frame.addEventListener("load", () => { frame.dataset.loaded = "1"; send(); }, { once: true });
+          return;
+        }
+
+        if (e.data.type === "wizards:drive-status"){
+          // Statusmeldingen (bezig/gelukt/mislukt) van de Kaartbuilder-iframe
+          // over Save/Laad-acties die vanuit deze balk gestart zijn.
+          const el = document.getElementById("drive-status");
+          if (el){ el.textContent = e.data.text || ""; el.className = e.data.kind || ""; }
+          return;
+        }
+
+        if (e.data.type === "wizards:collection-sync"){
+          // De Kaartbuilder stuurt zijn (bijgewerkte) collectie door bij elke
+          // wijziging en na elke Drive-actie. Doorsturen naar alle andere
+          // module-iframes zodat bv. Collectie meteen meeleeft, zonder dat de
+          // gebruiker eerst opnieuw moet inloggen of van tab moet wisselen.
+          ["frame-collection", "frame-council", "frame-arena"].forEach(function(id){
+            const f = document.getElementById(id);
+            if (f && f.contentWindow) f.contentWindow.postMessage(e.data, "*");
+          });
+          return;
+        }
+      });
+    }
+  });
+})();
+</script>
+</body>
+</html>

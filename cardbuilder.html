@@ -1,0 +1,1531 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wizards — Kaartbuilder</title>
+<link rel="stylesheet" href="shared/login-overlay.css">
+<link rel="stylesheet" href="shared/card-render.css">
+<link rel="stylesheet" href="shared/hat-avatar.css">
+<style>
+  :root{
+    --bg: #15121c;
+    --bg-vignette: radial-gradient(ellipse at 50% -10%, #241d33 0%, #15121c 55%);
+    --panel: #1e1a29;
+    --panel-2: #241f33;
+    --border: #362c49;
+    --border-soft: #2a2338;
+    --ink-light: #d9d2e8;
+    --ink-muted: #9788b3;
+    --ink-dim: #6f6288;
+    --gold: #c9a24b;
+    --gold-soft: #e2c583;
+    --parchment: #efe6d1;
+    --parchment-dark: #e2d5b5;
+    --parchment-ink: #2c2318;
+    --parchment-chip: #b7a578;
+    --parchment-chip-border: #8f7d4f;
+
+    --c-wizard: #3d5a80;
+    --c-manifestation: #3f6b4a;
+    --c-incantation: #9c3b4f;
+    --c-hex: #5b4b8a;
+    --c-destiny: #b8933a;
+    --c-burden: #5c4a3a;
+
+    --t-fire: #c1462b;
+    --t-earth: #6b5636;
+    --t-water: #2f6f8f;
+    --t-sky: #6fa8c9;
+    --t-shadow: #4a3a5c;
+    --t-light: #b9a666;
+
+    --font-display: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', serif;
+    --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: 'SF Mono', Consolas, Monaco, monospace;
+  }
+
+  *{ box-sizing: border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background: var(--bg-vignette);
+    color: var(--ink-light);
+    font-family: var(--font-ui);
+    min-height:100vh;
+  }
+
+  .btn{
+    font-family: var(--font-ui);
+    font-size:13px;
+    background: var(--panel-2);
+    color: var(--ink-light);
+    border:1px solid var(--border);
+    padding:8px 14px;
+    border-radius:5px;
+    cursor:pointer;
+    transition: border-color .15s, background .15s;
+    white-space:nowrap;
+  }
+  .btn:hover{ border-color: var(--gold); background:#2a2338; }
+  .btn.primary{ background: linear-gradient(180deg,#2f2743,#251f38); border-color: var(--gold); color: var(--gold-soft); }
+  .btn.primary:hover{ background:#352c4b; }
+  .btn.file-btn{ position:relative; overflow:hidden; display:inline-block; }
+  .btn.file-btn input[type=file]{
+    position:absolute; inset:0; opacity:0; cursor:pointer; font-size:200px;
+  }
+
+  .btn-summon{
+    width:100%; display:flex; align-items:center; justify-content:center; gap:7px;
+    background: linear-gradient(180deg, #3d2c10, #221808);
+    border:1px solid var(--gold); color: var(--gold-soft);
+    padding:9px 8px; border-radius:6px; margin:0 0 14px;
+    font-family: var(--font-display); font-size:12.5px; cursor:pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  }
+  .btn-summon:hover{ background: linear-gradient(180deg, #4d3714, #2c1f0a); }
+  .btn-summon:active{ transform: translateY(1px); }
+
+  .tag-chips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .tag-chip{
+    display:inline-flex; align-items:center; gap:5px;
+    background: var(--panel-2); border:1px solid var(--gold); color: var(--gold-soft);
+    border-radius:12px; padding:3px 9px 3px 11px; font-size:12px;
+  }
+  .tag-chip button{
+    background:none; border:none; color: var(--ink-dim); cursor:pointer;
+    font-size:13px; line-height:1; padding:0;
+  }
+  .tag-chip button:hover{ color: var(--gold-soft); }
+
+  /* ---- Subtypes (checkbox-chips, afhankelijk van kaarttype) ---- */
+  .subtype-chip-row{ display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; }
+  .subtype-chip-row .subtype-chip{
+    display:inline-flex; align-items:center; gap:6px;
+    background: var(--panel); border:1px solid var(--border); border-radius:6px;
+    padding:6px 10px; font-size:12.5px; color: var(--ink-muted); cursor:pointer;
+  }
+  .subtype-chip-row .subtype-chip:hover{ border-color: var(--gold); }
+  .subtype-chip-row .subtype-chip input{ accent-color: var(--gold); cursor:pointer; }
+  .subtype-chip-row .subtype-chip.checked{ border-color: var(--gold); color: var(--gold-soft); background:#2a2338; }
+  .subtype-chip-row .subtype-empty-hint{ font-size:12px; color: var(--ink-dim); font-style:italic; }
+
+  /* ---- Automatisatie: rarity/draft/effects (niet zichtbaar op de kaart) ---- */
+  .automation-hint{ font-size:12px; color: var(--ink-dim); margin:-4px 0 14px; line-height:1.5; }
+  #effects-list{ display:flex; flex-direction:column; gap:10px; margin-bottom:12px; }
+  .effect-row{
+    background: var(--panel); border:1px solid var(--border); border-radius:8px;
+    padding:12px; display:flex; flex-direction:column; gap:10px;
+  }
+  .effect-row-head{ display:flex; justify-content:space-between; align-items:center; }
+  .effect-row-head .effect-index{ font-size:11px; text-transform:uppercase; letter-spacing:0.6px; color: var(--gold); }
+  .effect-row-head button{
+    background:none; border:1px solid var(--border); color: var(--ink-dim); cursor:pointer;
+    font-size:11px; padding:3px 8px; border-radius:4px;
+  }
+  .effect-row-head button:hover{ border-color:#a1364a; color:#e79aaa; }
+  .effect-fields{ display:flex; flex-wrap:wrap; gap:10px; }
+  .effect-fields .field{ flex:1 1 130px; min-width:110px; }
+  .effect-fields .field label{ font-size:10px; }
+  .effect-fields .field select, .effect-fields .field input{ font-size:12.5px; padding:7px 8px; }
+  .effect-cost-row{ display:flex; align-items:center; gap:14px; padding-top:6px; border-top:1px solid var(--border-soft); }
+  .effect-cost-row label{ font-size:11px; color: var(--ink-dim); display:flex; align-items:center; gap:6px; }
+  .effect-cost-row input[type=number]{ width:60px; }
+  .effect-cost-row input[type=checkbox]{ accent-color: var(--gold); cursor:pointer; }
+
+  main{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+  }
+
+  .builder-toolbar{
+    display:flex; align-items:stretch; gap:0; flex-wrap:nowrap;
+    padding:0; border-bottom:1px solid var(--border); background: var(--panel);
+    flex-shrink:0;
+  }
+  .builder-toolbar-left{
+    flex:1; display:flex; align-items:stretch; gap:170px; min-width:0;
+  }
+  .builder-title-badge{
+    font-family: var(--font-display);
+    font-size:18.5px; font-weight:700; letter-spacing:0.5px;
+    color: var(--gold-soft);
+    display:flex; align-items:center;
+    padding:0 26px 0 22px;
+    background:
+      repeating-linear-gradient(115deg, rgba(0,0,0,0.15) 0 3px, transparent 3px 7px),
+      radial-gradient(ellipse at 50% 0%, rgba(226,197,131,0.12), transparent 65%),
+      linear-gradient(180deg, #241a10, #140d08);
+    border:1px solid var(--gold);
+    border-left:none;
+    border-radius:0 8px 8px 0;
+    box-shadow: 2px 0 8px rgba(0,0,0,0.4);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+    white-space:nowrap;
+  }
+  .builder-toolbar .btn-summon{
+    width:auto; margin:0; padding:9px 18px; font-size:12.5px; flex-shrink:0;
+    align-self:center;
+    display:inline-flex; align-items:center; gap:6px;
+  }
+
+  .builder-columns{
+    flex:1;
+    display:flex;
+    align-items:flex-start;
+    gap:0;
+    min-height:0;
+  }
+
+  #sidebar{
+    width:208px; flex-shrink:0;
+    border-left:1px solid var(--border);
+    background: var(--panel);
+    min-height: calc(100vh - 73px);
+    display:flex; flex-direction:column;
+  }
+  #sidebar .sidebar-head{ padding:14px 14px 10px; border-bottom:1px solid var(--border-soft); }
+  #sidebar input#search{
+    width:100%; background: var(--bg); border:1px solid var(--border);
+    color: var(--ink-light); padding:8px 10px; border-radius:5px; font-size:13px;
+  }
+  #card-list{ list-style:none; margin:0; padding:8px; overflow-y:auto; flex:1; }
+  #card-list li{
+    display:flex; align-items:center; gap:8px;
+    padding:9px 10px; border-radius:6px; cursor:pointer;
+    border:1px solid transparent;
+    margin-bottom:3px;
+  }
+  #card-list li:hover{ background: var(--panel-2); }
+  #card-list li.active{ background: #2c2540; border-color: var(--gold); }
+  #card-list .swatch{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+  #card-list .li-text{ flex:1; min-width:0; }
+  #card-list .li-name{ font-size:13px; color: var(--ink-light); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #card-list .li-type{ font-size:10.5px; color: var(--ink-dim); text-transform:uppercase; letter-spacing:0.5px; }
+  #card-list .li-actions{ display:flex; gap:4px; opacity:0; }
+  #card-list li:hover .li-actions{ opacity:1; }
+  #card-list .li-actions button{
+    background:none; border:none; color: var(--ink-dim); cursor:pointer; font-size:13px; padding:2px 4px;
+  }
+  #card-list .li-actions button:hover{ color: var(--gold-soft); }
+  #sidebar .sidebar-foot{ padding:10px 14px; border-top:1px solid var(--border-soft); font-size:11px; color: var(--ink-dim); }
+  #empty-list-msg{ padding:20px 14px; color: var(--ink-dim); font-size:12.5px; line-height:1.5; }
+
+  #form-panel{
+    flex:1 1 420px; min-width:340px;
+    padding:22px 26px;
+    max-height: calc(100vh - 73px);
+    overflow-y:auto;
+  }
+  #form-empty{ color: var(--ink-dim); font-size:14px; padding-top:60px; text-align:center; }
+
+  .field-row{ display:flex; gap:14px; margin-bottom:14px; flex-wrap:wrap; }
+  .field{ flex:1 1 140px; display:flex; flex-direction:column; gap:5px; }
+  .field label{ font-size:11px; text-transform:uppercase; letter-spacing:0.6px; color: var(--ink-dim); }
+  .field input[type=text], .field input[type=number], .field select, .field textarea{
+    background: var(--panel); border:1px solid var(--border); color: var(--ink-light);
+    padding:9px 10px; border-radius:5px; font-size:14px; font-family: var(--font-ui);
+    width:100%;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus{
+    outline:none; border-color: var(--gold);
+  }
+  .field textarea{ resize: vertical; font-family: var(--font-ui); line-height:1.45; }
+  #f-name{ font-family: var(--font-display); font-size:17px; }
+
+  .compact-field-row{
+    display:flex; flex-wrap:wrap; align-items:flex-start; gap:132px;
+    margin:22px 0 14px; padding-top:14px; border-top:1px solid var(--border-soft);
+  }
+  .mini-block{ display:flex; flex-direction:column; gap:8px; }
+  .mini-block-title{
+    font-size:11px; text-transform:uppercase; letter-spacing:0.6px; color: var(--gold);
+  }
+  .field-group{ display:flex; flex-wrap:wrap; gap:8px; }
+  .compact-field{
+    display:flex; align-items:center; gap:6px;
+    background: var(--panel); border:1px solid var(--border); border-radius:6px;
+    padding:6px 10px 6px 8px;
+  }
+  .compact-field .cf-icon{ font-size:14px; width:16px; text-align:center; flex-shrink:0; }
+  .compact-field label{
+    font-size:10px; text-transform:uppercase; letter-spacing:0.4px; color: var(--ink-dim);
+    white-space:nowrap; margin:0;
+  }
+  .compact-field input[type=number]{
+    width:46px; background: var(--bg); border:1px solid var(--border); color: var(--ink-light);
+    padding:5px 4px; border-radius:4px; font-size:13px; text-align:center;
+  }
+  .compact-field input[type=number]:focus{ outline:none; border-color: var(--gold); }
+
+  .section-title{
+    font-size:11px; text-transform:uppercase; letter-spacing:1px; color: var(--gold);
+    margin: 22px 0 10px; padding-top:14px; border-top:1px solid var(--border-soft);
+  }
+  .section-title:first-child{ margin-top:0; padding-top:0; border-top:none; }
+
+  #group-image{ display:flex; align-items:center; gap:12px; }
+  #img-preview-thumb{
+    width:56px; height:56px; border-radius:6px; border:1px solid var(--border);
+    background-size:cover; background-position:center; background-color: var(--panel-2);
+    flex-shrink:0;
+  }
+
+  /* ---- PREVIEW PANEL ---- */
+  #preview-panel{
+    width:340px; flex-shrink:0;
+    display:flex; flex-direction:column; align-items:center;
+    padding:26px 20px;
+    border-right:1px solid var(--border);
+    max-height: calc(100vh - 73px);
+    overflow-y:auto;
+  }
+  #preview-panel .preview-label{ font-size:11px; letter-spacing:1px; text-transform:uppercase; color: var(--ink-dim); margin-bottom:14px; }
+
+  /* ---------- Drive sync bar ---------- */
+  #drive-bar{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:9px 24px; border-bottom:1px solid var(--border); background:#191423; }
+
+  #autosave-banner{
+    background:#2a2338; border:1px solid var(--gold); color: var(--ink-light);
+    padding:9px 24px; font-size:12.5px; display:flex; gap:14px; align-items:center;
+  }
+  #autosave-banner button{ background:none; border:1px solid var(--border); color:var(--ink-light); border-radius:4px; padding:4px 10px; cursor:pointer; font-size:12px; }
+  #autosave-banner button:hover{ border-color: var(--gold); }
+
+  @media (max-width: 980px){
+    main{ flex-wrap:wrap; }
+    #sidebar, #form-panel, #preview-panel{ max-height:none; }
+    #sidebar{ width:100%; border-left:none; border-top:1px solid var(--border); }
+    #form-panel{ min-width:100%; }
+    #preview-panel{ width:100%; border-right:none; border-bottom:1px solid var(--border); }
+  }
+  @media (max-width: 760px){
+    body{ font-size:14px; }
+    .builder-toolbar{ flex-direction:column; flex-wrap:wrap; }
+    .builder-toolbar-left{ gap:0; flex-direction:column; align-items:stretch; }
+    .builder-title-badge{ border-radius:0; border-left:1px solid var(--gold); padding:10px 16px; }
+    .builder-toolbar .btn-summon{ width:auto; margin:10px 16px; }
+    #preview-panel, #form-panel, #sidebar{ padding-left:16px; padding-right:16px; }
+    #form-panel{ padding-top:18px; padding-bottom:18px; }
+    #preview-panel{ padding-top:18px; padding-bottom:18px; }
+    .field-row{ gap:10px; }
+    .compact-field-row{ gap:18px; }
+    #group-image{ flex-wrap:wrap; }
+  }
+</style>
+</head>
+<body>
+
+<div id="login-overlay">
+  <div class="login-card">
+    <div class="login-sigil">⟡</div>
+    <h2>Wizards — Kaartbuilder</h2>
+    <p class="login-sub">Log in om verder te gaan.</p>
+
+    <div id="login-form-fields">
+      <label for="login-username">Naam</label>
+      <input type="text" id="login-username" placeholder="Je naam (vrij te kiezen)" autocomplete="off">
+      <label for="login-password">Wachtwoord</label>
+      <input type="password" id="login-password" placeholder="Wachtwoord voor de Drive-sync" autocomplete="off">
+      <button class="btn primary" id="btn-login">Inloggen</button>
+    </div>
+
+    <div id="login-status"></div>
+
+    <div id="login-lastedit" style="display:none;">
+      <p id="login-lastedit-text"></p>
+      <button class="btn primary" id="btn-login-continue">Verdergaan</button>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+  <div id="autosave-banner" style="display:none;">
+    <span>Er staat een niet-opgeslagen sessie van deze browser klaar.</span>
+    <button id="btn-restore">Herstellen</button>
+    <button id="btn-dismiss-autosave">Negeren</button>
+  </div>
+
+  <div id="drive-bar">
+    <span id="drive-user-label"></span>
+    <span id="drive-status"></span>
+  </div>
+
+  <main id="view-builder">
+    <div class="builder-toolbar">
+      <div class="builder-toolbar-left">
+        <div class="builder-title-badge">Kaartbuilder</div>
+        <button class="btn-summon" id="btn-new">🪄 + Nieuwe kaart</button>
+      </div>
+    </div>
+
+    <div class="builder-columns">
+    <section id="preview-panel">
+      <div class="preview-label">Voorbeeld</div>
+      <div id="preview-mount"></div>
+    </section>
+
+    <section id="form-panel">
+      <div id="form-empty">Selecteer een kaart links, of maak een nieuwe kaart aan.</div>
+
+      <form id="card-form" style="display:none;" autocomplete="off">
+        <div class="section-title">Basis</div>
+        <div class="field-row">
+          <div class="field" style="flex:1 1 100%;">
+            <label for="f-name">Naam</label>
+            <input type="text" id="f-name" placeholder="Kaartnaam">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="f-type">Kaarttype</label>
+            <select id="f-type">
+              <option value="Wizard">Wizard</option>
+              <option value="Manifestation">Manifestation</option>
+              <option value="Incantation">Incantation</option>
+              <option value="Hex">Hex</option>
+              <option value="Destiny">Destiny</option>
+              <option value="Burden">Burden</option>
+            </select>
+          </div>
+          <div class="field" id="group-theme">
+            <label for="f-theme">Theme</label>
+            <select id="f-theme">
+              <option value="">— geen —</option>
+              <option value="Fire">Fire</option>
+              <option value="Earth">Earth</option>
+              <option value="Water">Water</option>
+              <option value="Sky">Sky</option>
+              <option value="Shadow">Shadow</option>
+              <option value="Light">Light</option>
+            </select>
+          </div>
+          <div class="field" id="group-location">
+            <label for="f-location">Location</label>
+            <select id="f-location">
+              <option value="">— geen —</option>
+              <option value="The Citadel">The Citadel</option>
+              <option value="The Harbour">The Harbour</option>
+              <option value="The Barrow">The Barrow</option>
+              <option value="The Maw">The Maw</option>
+              <option value="The Wildwood">The Wildwood</option>
+              <option value="The Observatory">The Observatory</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="f-phase">Fase</label>
+            <select id="f-phase">
+              <option value="">— geen —</option>
+              <option value="Starter">Starter</option>
+              <option value="Apprentice">Apprentice</option>
+              <option value="Journeyman">Journeyman</option>
+              <option value="Master">Master</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field-row" id="group-subtypes-row" style="display:none;">
+          <div class="field" style="flex:1 1 100%;">
+            <label>Subtypes — getoond op de kaart als bv. "Manifestation - Minion" (meerdere mogelijk)</label>
+            <div id="group-subtypes" class="subtype-chip-row"></div>
+          </div>
+        </div>
+
+        <div class="compact-field-row">
+          <div class="mini-block" id="group-cost-fields">
+            <div class="mini-block-title">Kosten</div>
+            <div class="field-group">
+              <div class="compact-field">
+                <span class="cf-icon">⚡</span>
+                <label for="f-actionCost">Action</label>
+                <input type="number" id="f-actionCost" min="0" step="1" value="0">
+              </div>
+              <div class="compact-field">
+                <span class="cf-icon">🔥</span>
+                <label for="f-spiteCost">Spite</label>
+                <input type="number" id="f-spiteCost" min="0" step="1" value="0">
+              </div>
+            </div>
+          </div>
+          <div class="mini-block" id="group-stats-fields">
+            <div class="mini-block-title">Stats</div>
+            <div class="field-group">
+              <div class="compact-field">
+                <span class="cf-icon">🛡️</span>
+                <label for="f-body">Body</label>
+                <input type="number" id="f-body" placeholder="—">
+              </div>
+              <div class="compact-field">
+                <span class="cf-icon">🧠</span>
+                <label for="f-mind">Mind</label>
+                <input type="number" id="f-mind" placeholder="—">
+              </div>
+              <div class="compact-field">
+                <span class="cf-icon">👻</span>
+                <label for="f-soul">Soul</label>
+                <input type="number" id="f-soul" placeholder="—">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title">Kaarttekst</div>
+        <div class="field-row">
+          <div class="field" style="flex:1 1 100%;">
+            <label for="f-gameText">Game text (vrije tekst, incl. keywords)</label>
+            <textarea id="f-gameText" rows="6" placeholder="Bv. Slumber 2. Wanneer deze kaart Exhaust raakt, deal 1 Body damage aan een teiken zonder Warding."></textarea>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field" style="flex:1 1 100%;">
+            <label for="f-flavorText">Flavor text</label>
+            <textarea id="f-flavorText" rows="2" placeholder="Sfeertekst (optioneel)"></textarea>
+          </div>
+        </div>
+
+        <div class="section-title">Kaartbeeld</div>
+        <div class="field-row">
+          <div class="field" style="flex:1 1 100%;">
+            <div id="group-image">
+              <div id="img-preview-thumb"></div>
+              <button type="button" class="btn file-btn">Kies afbeelding…
+                <input type="file" id="f-image" accept="image/*">
+              </button>
+              <button type="button" class="btn" id="btn-remove-image">Verwijder</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title">Tags &amp; metadata</div>
+        <div class="field-row">
+          <div class="field">
+            <label for="f-status">Status — niet zichtbaar op de kaart, enkel voor filteren</label>
+            <select id="f-status">
+              <option value="In Design">In Design</option>
+              <option value="Playtesting">Playtesting</option>
+              <option value="Balancing">Balancing</option>
+              <option value="Afgewerkt">Afgewerkt</option>
+              <option value="Archived">Archived</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="f-createdBy">Ontworpen door — niet zichtbaar op de kaart</label>
+            <input type="text" id="f-createdBy" placeholder="naam van de ontwerper">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field" style="flex:1 1 100%;">
+            <label for="f-tag-input">Tags — niet zichtbaar op de kaart, enkel voor sorteren/filteren (kies een bestaande of typ een nieuwe, Enter om toe te voegen)</label>
+            <input type="text" id="f-tag-input" list="tag-suggestions" placeholder="bv. playtest-v1, nerf-kandidaat, favoriet…">
+            <datalist id="tag-suggestions"></datalist>
+            <div id="tag-chips" class="tag-chips"></div>
+          </div>
+        </div>
+
+        <div id="meta-info" style="font-size:11.5px; color:var(--ink-dim); margin-top:-6px;"></div>
+
+        <div class="section-title">Automatisatie — arena &amp; draft</div>
+        <div class="automation-hint">Deze velden sturen de toekomstige regel-engine en draft-tool aan. Ze staan nooit op de kaart zelf — enkel de Subtypes hierboven zijn wél zichtbaar op de kaart.</div>
+        <div class="field-row">
+          <div class="field">
+            <label for="f-rarity">Rarity — voor draft-boosters</label>
+            <select id="f-rarity">
+              <option value="">— geen —</option>
+              <option value="Common">Common</option>
+              <option value="Uncommon">Uncommon</option>
+              <option value="Rare">Rare</option>
+              <option value="Signature">Signature</option>
+            </select>
+          </div>
+          <div class="field" style="justify-content:flex-end;">
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+              <input type="checkbox" id="f-draftLegal" style="width:15px; height:15px; accent-color:var(--gold);">
+              Draft-legal (mag in booster-packs)
+            </label>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field" style="flex:1 1 100%;">
+            <label>Effecten (triggers/acties voor de arena-engine)</label>
+            <div id="effects-list"></div>
+            <button type="button" class="btn" id="btn-add-effect">+ Effect toevoegen</button>
+          </div>
+        </div>
+
+        <div class="section-title">Ontwerpnotities</div>
+        <div class="field-row">
+          <div class="field" style="flex:1 1 100%;">
+            <label for="f-notes">Interne notities (niet op de kaart, enkel voor jezelf)</label>
+            <textarea id="f-notes" rows="3" placeholder="Design-overwegingen, twijfels, TODO's…"></textarea>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <aside id="sidebar">
+      <div class="sidebar-head">
+        <input type="text" id="search" placeholder="Zoek op naam, type, theme…">
+      </div>
+      <ul id="card-list"></ul>
+      <div id="empty-list-msg" style="display:none;">Nog geen kaarten. Klik op “+ Nieuwe kaart” om te beginnen, of laad een bestaande .json-set.</div>
+      <div class="sidebar-foot"><span id="count-label">0 kaarten</span></div>
+    </aside>
+    </div>
+  </main>
+</div>
+
+<script src="shared/card-data.js"></script>
+<script src="shared/card-render.js"></script>
+<script src="shared/hat-avatar.js"></script>
+<script src="shared/drive-auth.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  const STORAGE_KEY = "wizards_card_builder_autosave_v1";
+
+  let collection = [];
+  let currentId = null;
+
+  // Ingevuld door DriveAuth na een geslaagde login (zie onderaan).
+  let driveUsername = "";
+  let drivePassword = "";
+  let driveLastEditedBy = "";
+  let driveLastEditedAt = null;
+  let driveBaselineEditedAt = null;
+  // Velden in de Drive-data die deze module niet zelf beheert (bv. council-
+  // gegevens van council.html) — nooit leegschrijven bij het opslaan.
+  let driveUnknownFields = {};
+
+  function findCard(id){ return collection.find(c => c.id === id) || null; }
+
+  function formatMetaDate(ts){
+    if (!ts) return "onbekend";
+    return new Date(ts).toLocaleString("nl-BE", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  }
+
+  function newCard(){
+    const now = Date.now();
+    const card = normalizeCard({ createdBy: driveUsername || "", firstCreated: now, lastUpdated: now, lastUpdatedBy: driveUsername || "" });
+    collection.push(card);
+    currentId = card.id;
+    renderAll();
+    autosave();
+    document.getElementById("f-name").focus();
+  }
+
+  // ---------- Sidebar ----------
+  function renderSidebar(){
+    const list = document.getElementById("card-list");
+    const emptyMsg = document.getElementById("empty-list-msg");
+    const countLabel = document.getElementById("count-label");
+    const query = (document.getElementById("search").value || "").trim().toLowerCase();
+
+    list.innerHTML = "";
+    countLabel.textContent = collection.length + (collection.length === 1 ? " kaart" : " kaarten");
+
+    const filtered = collection.filter(c => {
+      if (!query) return true;
+      const hay = [c.name, c.type, c.theme, c.location, c.status, c.createdBy, (c.subtypes || []).join(" "), (c.tags || []).join(" ")].join(" ").toLowerCase();
+      return hay.includes(query);
+    });
+
+    emptyMsg.style.display = collection.length === 0 ? "block" : "none";
+
+    filtered.forEach(c => {
+      const li = document.createElement("li");
+      if (c.id === currentId) li.classList.add("active");
+
+      const swatch = document.createElement("span");
+      swatch.className = "swatch";
+      swatch.style.background = `var(${TYPE_COLOR_VAR[c.type]})`;
+
+      const textWrap = document.createElement("div");
+      textWrap.className = "li-text";
+      const nameEl = document.createElement("div");
+      nameEl.className = "li-name";
+      nameEl.textContent = c.name || "Naamloze kaart";
+      const typeEl = document.createElement("div");
+      typeEl.className = "li-type";
+      typeEl.textContent = c.type + (c.theme ? " · " + c.theme : "") + (c.location ? " · " + c.location : "") + (c.createdBy ? " · door " + c.createdBy : "");
+      textWrap.appendChild(nameEl);
+      textWrap.appendChild(typeEl);
+
+      const actions = document.createElement("div");
+      actions.className = "li-actions";
+      const dupBtn = document.createElement("button");
+      dupBtn.type = "button"; dupBtn.title = "Dupliceer"; dupBtn.textContent = "⧉";
+      dupBtn.addEventListener("click", (e) => { e.stopPropagation(); duplicateCard(c.id); });
+      const delBtn = document.createElement("button");
+      delBtn.type = "button"; delBtn.title = "Verwijder"; delBtn.textContent = "×";
+      delBtn.addEventListener("click", (e) => { e.stopPropagation(); deleteCard(c.id); });
+      actions.appendChild(dupBtn);
+      actions.appendChild(delBtn);
+
+      li.appendChild(swatch);
+      li.appendChild(textWrap);
+      li.appendChild(actions);
+      li.addEventListener("click", () => selectCard(c.id));
+      list.appendChild(li);
+    });
+  }
+
+  function duplicateCard(id){
+    const original = findCard(id);
+    if (!original) return;
+    const now = Date.now();
+    const copy = normalizeCard(JSON.parse(JSON.stringify(original)));
+    copy.id = uid();
+    copy.name = original.name ? original.name + " (kopie)" : "";
+    copy.firstCreated = now;
+    copy.lastUpdated = now;
+    copy.lastUpdatedBy = driveUsername || "";
+    const idx = collection.findIndex(c => c.id === id);
+    collection.splice(idx + 1, 0, copy);
+    currentId = copy.id;
+    renderAll();
+    autosave();
+  }
+
+  function deleteCard(id){
+    const card = findCard(id);
+    if (!card) return;
+    const label = card.name || "deze naamloze kaart";
+    if (!confirm(`"${label}" verwijderen? Dit kan niet ongedaan gemaakt worden.`)) return;
+    const idx = collection.findIndex(c => c.id === id);
+    collection.splice(idx, 1);
+    if (currentId === id){
+      currentId = collection.length ? (collection[idx] ? collection[idx].id : collection[collection.length-1].id) : null;
+    }
+    renderAll();
+    autosave();
+  }
+
+  // ---------- Form ----------
+  function selectCard(id){
+    currentId = id;
+    renderForm();
+    renderPreview();
+    renderSidebar();
+  }
+
+  function toggleGroups(type){
+    const cfg = TYPE_CONFIG[type] || TYPE_CONFIG.Manifestation;
+    document.getElementById("group-theme").style.display = cfg.theme ? "flex" : "none";
+    document.getElementById("group-location").style.display = cfg.location ? "flex" : "none";
+    document.getElementById("group-cost-fields").style.display = cfg.cost ? "flex" : "none";
+    document.getElementById("group-stats-fields").style.display = cfg.stats ? "flex" : "none";
+  }
+
+  function renderForm(){
+    const form = document.getElementById("card-form");
+    const empty = document.getElementById("form-empty");
+    const card = findCard(currentId);
+
+    if (!card){
+      form.style.display = "none";
+      empty.style.display = "block";
+      return;
+    }
+    form.style.display = "block";
+    empty.style.display = "none";
+
+    document.getElementById("f-name").value = card.name;
+    document.getElementById("f-type").value = card.type;
+    document.getElementById("f-theme").value = card.theme;
+    document.getElementById("f-location").value = card.location;
+    document.getElementById("f-phase").value = card.phase;
+    document.getElementById("f-status").value = card.status;
+    document.getElementById("f-createdBy").value = card.createdBy || "";
+    document.getElementById("f-actionCost").value = card.actionCost;
+    document.getElementById("f-spiteCost").value = card.spiteCost;
+    document.getElementById("f-body").value = card.body;
+    document.getElementById("f-mind").value = card.mind;
+    document.getElementById("f-soul").value = card.soul;
+    document.getElementById("f-gameText").value = card.gameText;
+    document.getElementById("f-flavorText").value = card.flavorText;
+    document.getElementById("f-notes").value = card.notes;
+    document.getElementById("f-rarity").value = card.rarity || "";
+    document.getElementById("f-draftLegal").checked = !!card.draftLegal;
+
+    renderTagChips(card);
+    populateTagSuggestions();
+    renderSubtypeGroup(card);
+    renderEffectsList(card);
+
+    const metaEl = document.getElementById("meta-info");
+    if (metaEl){
+      metaEl.textContent = "Aangemaakt: " + formatMetaDate(card.firstCreated) +
+        "  ·  Laatst gewijzigd: " + formatMetaDate(card.lastUpdated) +
+        (card.lastUpdatedBy ? " door " + card.lastUpdatedBy : "");
+    }
+
+    const thumb = document.getElementById("img-preview-thumb");
+    thumb.style.backgroundImage = card.image ? `url(${card.image})` : "none";
+
+    toggleGroups(card.type);
+  }
+
+  function syncFromForm(){
+    const card = findCard(currentId);
+    if (!card) return;
+    card.name = document.getElementById("f-name").value;
+    card.type = document.getElementById("f-type").value;
+    card.theme = document.getElementById("f-theme").value;
+    card.location = document.getElementById("f-location").value;
+    card.phase = document.getElementById("f-phase").value;
+    card.status = document.getElementById("f-status").value;
+    card.createdBy = document.getElementById("f-createdBy").value;
+    card.actionCost = toNum(document.getElementById("f-actionCost").value, 0);
+    card.spiteCost = toNum(document.getElementById("f-spiteCost").value, 0);
+    const bodyRaw = document.getElementById("f-body").value;
+    const mindRaw = document.getElementById("f-mind").value;
+    const soulRaw = document.getElementById("f-soul").value;
+    card.body = bodyRaw === "" ? "" : toNum(bodyRaw, "");
+    card.mind = mindRaw === "" ? "" : toNum(mindRaw, "");
+    card.soul = soulRaw === "" ? "" : toNum(soulRaw, "");
+    card.gameText = document.getElementById("f-gameText").value;
+    card.flavorText = document.getElementById("f-flavorText").value;
+    card.notes = document.getElementById("f-notes").value;
+    card.rarity = document.getElementById("f-rarity").value;
+    card.draftLegal = document.getElementById("f-draftLegal").checked;
+    card.subtypes = Array.from(document.querySelectorAll('#group-subtypes input[type=checkbox]:checked')).map(cb => cb.value);
+    syncEffectsFromForm(card);
+
+    // Elke effectieve wijziging via het formulier telt als een "update" —
+    // niet enkel bij opslaan, zodat lastUpdated ook meteen klopt bij Drive-
+    // conflictdetectie in driveWrite/driveMerge.
+    if (!card.firstCreated) card.firstCreated = Date.now();
+    card.lastUpdated = Date.now();
+    card.lastUpdatedBy = driveUsername || card.lastUpdatedBy || "";
+    const metaEl = document.getElementById("meta-info");
+    if (metaEl){
+      metaEl.textContent = "Aangemaakt: " + formatMetaDate(card.firstCreated) +
+        "  ·  Laatst gewijzigd: " + formatMetaDate(card.lastUpdated) +
+        (card.lastUpdatedBy ? " door " + card.lastUpdatedBy : "");
+    }
+  }
+
+  // ---------- Subtypes ----------
+  function renderSubtypeGroup(card){
+    const row = document.getElementById("group-subtypes-row");
+    const wrap = document.getElementById("group-subtypes");
+    const allowed = SUBTYPE_LIST_BY_TYPE[card.type] || [];
+    if (allowed.length === 0){
+      row.style.display = "none";
+      wrap.innerHTML = "";
+      return;
+    }
+    row.style.display = "flex";
+    wrap.innerHTML = allowed.map(st => {
+      const checked = (card.subtypes || []).includes(st);
+      return `<label class="subtype-chip${checked ? " checked" : ""}"><input type="checkbox" value="${escapeHtml(st)}" ${checked ? "checked" : ""}> ${escapeHtml(st)}</label>`;
+    }).join("");
+    wrap.querySelectorAll(".subtype-chip").forEach(chip => {
+      const cb = chip.querySelector("input");
+      cb.addEventListener("change", () => {
+        chip.classList.toggle("checked", cb.checked);
+        syncFromForm();
+        renderPreview();
+        renderSidebar();
+        autosave();
+      });
+    });
+  }
+
+  // ---------- Effecten (arena-engine) ----------
+  function renderEffectsList(card){
+    const wrap = document.getElementById("effects-list");
+    wrap.innerHTML = "";
+    (card.effects || []).forEach((eff, idx) => {
+      wrap.appendChild(buildEffectRowEl(eff, idx));
+    });
+  }
+
+  function buildEffectRowEl(eff, idx){
+    const row = document.createElement("div");
+    row.className = "effect-row";
+    row.dataset.effectId = eff.id;
+    row.innerHTML = `
+      <div class="effect-row-head">
+        <span class="effect-index">Effect ${idx + 1}</span>
+        <button type="button" class="btn-remove-effect">Verwijder</button>
+      </div>
+      <div class="effect-fields">
+        <div class="field">
+          <label>Trigger</label>
+          <select class="ef-trigger">
+            <option value="">— geen —</option>
+            ${TRIGGER_LIST.map(t => `<option value="${t}"${eff.trigger === t ? " selected" : ""}>${t}</option>`).join("")}
+          </select>
+        </div>
+        <div class="field">
+          <label>Actie</label>
+          <select class="ef-action">
+            <option value="">— geen —</option>
+            ${ACTION_LIST.map(a => `<option value="${a}"${eff.action === a ? " selected" : ""}>${a}</option>`).join("")}
+          </select>
+        </div>
+        <div class="field">
+          <label>Target</label>
+          <select class="ef-target">
+            ${TARGET_LIST.map(t => `<option value="${t}"${eff.target === t ? " selected" : ""}>${t}</option>`).join("")}
+          </select>
+        </div>
+        <div class="field">
+          <label>Waarde</label>
+          <input type="number" class="ef-value" value="${eff.value || 0}" step="1">
+        </div>
+      </div>
+      <div class="field">
+        <label>Conditie (vrije tekst, optioneel — bv. "bodyShield == 0")</label>
+        <input type="text" class="ef-condition" value="${escapeHtml(eff.condition || "")}" placeholder="nog geen condition-parser — puur ter documentatie">
+      </div>
+      <div class="effect-cost-row">
+        <label>🔥 Extra Spite-kost <input type="number" class="ef-cost-spite" min="0" step="1" value="${(eff.cost && eff.cost.spite) || 0}"></label>
+        <label><input type="checkbox" class="ef-cost-exhaust" ${(eff.cost && eff.cost.exhaustSelf) ? "checked" : ""}> Kost: exhaust deze kaart</label>
+      </div>
+    `;
+    row.querySelector(".btn-remove-effect").addEventListener("click", () => removeEffect(eff.id));
+    return row;
+  }
+
+  function addEffect(){
+    const card = findCard(currentId);
+    if (!card) return;
+    if (!card.effects) card.effects = [];
+    card.effects.push(normalizeEffect({}));
+    renderEffectsList(card);
+    autosave();
+  }
+
+  function removeEffect(effectId){
+    const card = findCard(currentId);
+    if (!card) return;
+    card.effects = (card.effects || []).filter(e => e.id !== effectId);
+    renderEffectsList(card);
+    autosave();
+  }
+
+  function syncEffectsFromForm(card){
+    if (!card || !card.effects) return;
+    document.querySelectorAll("#effects-list .effect-row").forEach(row => {
+      const id = row.dataset.effectId;
+      const eff = card.effects.find(e => e.id === id);
+      if (!eff) return;
+      eff.trigger = row.querySelector(".ef-trigger").value;
+      eff.action = row.querySelector(".ef-action").value;
+      eff.target = row.querySelector(".ef-target").value;
+      eff.value = toNum(row.querySelector(".ef-value").value, 0);
+      eff.condition = row.querySelector(".ef-condition").value;
+      eff.cost = {
+        spite: toNum(row.querySelector(".ef-cost-spite").value, 0),
+        exhaustSelf: row.querySelector(".ef-cost-exhaust").checked
+      };
+    });
+  }
+
+  document.getElementById("card-form").addEventListener("input", (e) => {
+    syncFromForm();
+    if (e.target && e.target.id === "f-type"){
+      toggleGroups(document.getElementById("f-type").value);
+      const card = findCard(currentId);
+      if (card){
+        card.subtypes = [];
+        renderSubtypeGroup(card);
+      }
+    }
+    renderPreview();
+    renderSidebar();
+    autosave();
+  });
+
+  // ---------- Tags ----------
+  function allKnownTags(){
+    const set = new Set();
+    collection.forEach(c => (c.tags || []).forEach(t => set.add(t)));
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }
+
+  function populateTagSuggestions(){
+    const dl = document.getElementById("tag-suggestions");
+    dl.innerHTML = allKnownTags().map(t => `<option value="${escapeHtml(t)}">`).join("");
+  }
+
+  function renderTagChips(card){
+    const wrap = document.getElementById("tag-chips");
+    wrap.innerHTML = "";
+    (card.tags || []).forEach(tag => {
+      const chip = document.createElement("span");
+      chip.className = "tag-chip";
+      chip.innerHTML = `${escapeHtml(tag)} <button type="button" title="Verwijder tag">×</button>`;
+      chip.querySelector("button").addEventListener("click", () => removeTagFromCurrentCard(tag));
+      wrap.appendChild(chip);
+    });
+  }
+
+  function addTagToCurrentCard(rawTag){
+    const card = findCard(currentId);
+    if (!card) return;
+    const tag = rawTag.trim();
+    if (!tag) return;
+    if (!card.tags) card.tags = [];
+    if (!card.tags.some(t => t.toLowerCase() === tag.toLowerCase())) card.tags.push(tag);
+    renderTagChips(card);
+    populateTagSuggestions();
+    autosave();
+  }
+
+  function removeTagFromCurrentCard(tag){
+    const card = findCard(currentId);
+    if (!card) return;
+    card.tags = (card.tags || []).filter(t => t !== tag);
+    renderTagChips(card);
+    populateTagSuggestions();
+    autosave();
+  }
+
+  const tagInput = document.getElementById("f-tag-input");
+  tagInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter"){
+      e.preventDefault();
+      addTagToCurrentCard(tagInput.value);
+      tagInput.value = "";
+    }
+  });
+  tagInput.addEventListener("change", () => {
+    if (tagInput.value.trim()){
+      addTagToCurrentCard(tagInput.value);
+      tagInput.value = "";
+    }
+  });
+
+  // afbeelding uploaden
+  document.getElementById("f-image").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const card = findCard(currentId);
+    if (!card) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      card.image = reader.result;
+      document.getElementById("img-preview-thumb").style.backgroundImage = `url(${card.image})`;
+      renderPreview();
+      autosave();
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  });
+  document.getElementById("btn-remove-image").addEventListener("click", () => {
+    const card = findCard(currentId);
+    if (!card) return;
+    card.image = "";
+    document.getElementById("img-preview-thumb").style.backgroundImage = "none";
+    renderPreview();
+    autosave();
+  });
+
+  // ---------- Preview ----------
+  function renderPreview(){
+    const mount = document.getElementById("preview-mount");
+    const card = findCard(currentId);
+    if (!card){
+      mount.innerHTML = `<div class="card-frame"><div class="card-inner" style="align-items:center;justify-content:center;display:flex;">
+        <span style="color:#8a7d5c;font-family:var(--font-display);font-size:13px;">Geen kaart geselecteerd</span>
+      </div></div>`;
+      return;
+    }
+    mount.innerHTML = buildCardFrameHtml(card);
+  }
+
+  function renderAll(){
+    renderSidebar();
+    renderForm();
+    renderPreview();
+  }
+
+  // ---------- Save / Load ----------
+  // Vaste bestandsnaam (het hernoem-veld is vervallen — iedereen gebruikt nu
+  // gewoon "wizards-cards.json", zowel bij export als bij het herkennen van
+  // geladen bestanden hoeft dat niet langer, zie loadFromFiles hieronder).
+  const EXPORT_FILENAME = "wizards-cards";
+
+  function exportCollection(){
+    const blob = new Blob([JSON.stringify(collection, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = EXPORT_FILENAME + ".json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function readFileAsText(file){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error || new Error("Kon bestand niet lezen"));
+      reader.readAsText(file);
+    });
+  }
+
+  function extractCardsFromJson(parsed){
+    if (Array.isArray(parsed)) return parsed;
+    if (parsed && typeof parsed === "object") return [parsed];
+    return null;
+  }
+
+  async function loadFromFiles(fileList){
+    const matched = Array.from(fileList);
+    if (!matched.length) return;
+
+    let mode = "merge";
+    if (collection.length > 0){
+      const replace = confirm(
+        `Je hebt al ${collection.length} kaart(en) in de builder.\n\n` +
+        `Klik OK om deze te VERVANGEN door de ${matched.length} geladen bestand(en).\n` +
+        `Klik Annuleren om de geladen kaarten SAMEN TE VOEGEN met je huidige set (aanbevolen als je met meerdere mensen werkt).`
+      );
+      mode = replace ? "replace" : "merge";
+    }
+
+    let incomingCards = [];
+    const failedFiles = [];
+    for (const file of matched){
+      try {
+        const text = await readFileAsText(file);
+        const parsed = JSON.parse(text);
+        const cards = extractCardsFromJson(parsed);
+        if (!cards){
+          failedFiles.push(file.name + " (onverwacht JSON-formaat)");
+          continue;
+        }
+        incomingCards = incomingCards.concat(cards.map(normalizeCard));
+      } catch (err){
+        failedFiles.push(file.name + " (" + err.message + ")");
+      }
+    }
+
+    let reassignedCount = 0;
+    if (mode === "replace"){
+      const seen = new Set();
+      incomingCards.forEach(c => {
+        if (seen.has(c.id)){ c.id = uid(); reassignedCount++; }
+        seen.add(c.id);
+      });
+      collection = incomingCards;
+    } else {
+      const existingIds = new Set(collection.map(c => c.id));
+      incomingCards.forEach(c => {
+        if (existingIds.has(c.id)){ c.id = uid(); reassignedCount++; }
+        existingIds.add(c.id);
+      });
+      collection = collection.concat(incomingCards);
+    }
+
+    currentId = collection.length ? collection[0].id : null;
+    renderAll();
+    autosave();
+
+    const summaryParts = [`${incomingCards.length} kaart(en) geladen uit ${matched.length} bestand(en).`];
+    if (reassignedCount) summaryParts.push(`${reassignedCount} kaart(en) kregen een nieuw intern id wegens een dubbele id.`);
+    if (failedFiles.length) summaryParts.push(`Niet gelukt: ${failedFiles.join(", ")}.`);
+    if (reassignedCount || failedFiles.length) alert(summaryParts.join("\n"));
+  }
+
+  document.getElementById("btn-new").addEventListener("click", newCard);
+  document.getElementById("btn-add-effect").addEventListener("click", addEffect);
+  document.getElementById("search").addEventListener("input", renderSidebar);
+
+  // ---------- Autosave (enkel lokale browser — geen vervanging voor JSON-export of Drive) ----------
+  function autosave(){
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ collection, currentId }));
+    } catch (e){ /* opslag onbeschikbaar — stil negeren */ }
+    // Ingebed: de collectie meteen doorsturen naar de shell, die het
+    // doorstuurt naar andere open modules (bv. Collectie) — zo verschijnen
+    // nieuwe/gewijzigde kaarten daar meteen, zonder herladen of opnieuw
+    // inloggen. Zie index.html, listener voor "wizards:collection-sync".
+    if (window.self !== window.top){
+      try { window.parent.postMessage({ type: "wizards:collection-sync", collection: collection }, "*"); } catch (e){ /* ignore */ }
+    }
+  }
+
+  function checkAutosave(){
+    let saved;
+    try {
+      saved = localStorage.getItem(STORAGE_KEY);
+    } catch (e){ return; }
+    if (!saved) return;
+    document.getElementById("autosave-banner").style.display = "flex";
+
+    document.getElementById("btn-restore").addEventListener("click", () => {
+      try {
+        const data = JSON.parse(saved);
+        collection = (data.collection || []).map(normalizeCard);
+        currentId = data.currentId && findCard(data.currentId) ? data.currentId : (collection[0] ? collection[0].id : null);
+        renderAll();
+      } catch (e){
+        alert("Kon vorige sessie niet herstellen.");
+      }
+      document.getElementById("autosave-banner").style.display = "none";
+    }, { once: true });
+
+    document.getElementById("btn-dismiss-autosave").addEventListener("click", () => {
+      document.getElementById("autosave-banner").style.display = "none";
+    }, { once: true });
+  }
+
+  // ---------- Google Drive sync ----------
+  function setDriveStatus(text, kind){
+    const el = document.getElementById("drive-status");
+    if (el){ el.textContent = text; el.className = kind || ""; }
+    // Ingebed: ook doorsturen naar de shell, want de zichtbare statustekst
+    // staat daar nu (deze module se eigen #drive-bar is dan verborgen).
+    if (window.self !== window.top){
+      try { window.parent.postMessage({ type: "wizards:drive-status", text: text, kind: kind || "" }, "*"); } catch (e){ /* ignore */ }
+    }
+  }
+
+  function applyUnknownFields(data){
+    driveUnknownFields = {};
+    Object.keys(data).forEach(key => {
+      if (!["collection", "currentId", "lastEditedBy", "lastEditedAt", "error"].includes(key)){
+        driveUnknownFields[key] = data[key];
+      }
+    });
+  }
+
+  async function driveLoad(){
+    if (collection.length > 0 && !confirm(
+      "Dit vervangt je huidige kaarten door de laatste versie uit Drive.\n\nDoorgaan?"
+    )) return;
+
+    setDriveStatus("Bezig met laden vanuit Drive…", "busy");
+    try {
+      const data = await DriveAuth.fetchFullSync(drivePassword);
+      collection = Array.isArray(data.collection) ? data.collection.map(normalizeCard) : [];
+      currentId = data.currentId && collection.find(c => c.id === data.currentId) ? data.currentId : (collection[0] ? collection[0].id : null);
+      applyUnknownFields(data);
+
+      driveLastEditedBy = data.lastEditedBy || "";
+      driveLastEditedAt = data.lastEditedAt || null;
+      driveBaselineEditedAt = driveLastEditedAt;
+      renderAll();
+      autosave();
+      DriveAuth.saveSession(driveUsername, drivePassword, data);
+      const t = new Date();
+      setDriveStatus("✓ Geladen om " + t.toLocaleTimeString("nl-BE").slice(0,5) + " — " + DriveAuth.formatLastEdit(driveLastEditedBy, driveLastEditedAt), "ok");
+    } catch (err){
+      setDriveStatus("⚠ Kon niet verbinden met Drive", "err");
+    }
+  }
+
+  async function driveMerge(){
+    setDriveStatus("Bezig met ophalen van cloud-versie…", "busy");
+
+    let cloudData;
+    try {
+      cloudData = await DriveAuth.fetchFullSync(drivePassword);
+    } catch (err){
+      setDriveStatus("⚠ Kon niet verbinden met Drive", "err");
+      return;
+    }
+
+    const cloudCards = Array.isArray(cloudData.collection) ? cloudData.collection.map(normalizeCard) : [];
+    const mergedById = new Map(cloudCards.map(c => [c.id, c]));
+
+    let addedCount = 0, unchangedCount = 0, mineWonCount = 0, cloudWonCount = 0;
+    for (const localCard of collection){
+      const cloudVersion = mergedById.get(localCard.id);
+      if (!cloudVersion){
+        mergedById.set(localCard.id, localCard);
+        addedCount++;
+        continue;
+      }
+      const same = JSON.stringify(cloudVersion) === JSON.stringify(localCard);
+      if (same){
+        unchangedCount++;
+        continue;
+      }
+      const keepMine = confirm(
+        `Kaart "${localCard.name || "(naamloos)"}" verschilt tussen jouw versie en de cloud-versie ` +
+        `(iemand anders heeft hem ook bewerkt).\n\n` +
+        `Klik OK om JOUW versie te behouden.\n` +
+        `Klik Annuleren om de CLOUD-versie te behouden (jouw wijzigingen aan deze kaart gaan dan verloren).`
+      );
+      if (keepMine){
+        mergedById.set(localCard.id, localCard);
+        mineWonCount++;
+      } else {
+        mergedById.set(localCard.id, cloudVersion);
+        cloudWonCount++;
+      }
+    }
+
+    const merged = Array.from(mergedById.values());
+    applyUnknownFields(cloudData);
+
+    setDriveStatus("Bezig met wegschrijven van samengevoegde set…", "busy");
+    const payload = Object.assign({}, driveUnknownFields, {
+      collection: merged,
+      currentId: (currentId && merged.find(c => c.id === currentId)) ? currentId : (merged[0] ? merged[0].id : null),
+      lastEditedBy: driveUsername || "(naamloos)",
+      lastEditedAt: Date.now()
+    });
+    try {
+      const res = await fetch(DriveAuth.driveUrl(drivePassword), {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.error){
+        setDriveStatus("⚠ Wegschrijven mislukt" + (data.error ? ": " + data.error : ""), "err");
+        return;
+      }
+      collection = merged;
+      currentId = payload.currentId;
+      driveLastEditedBy = payload.lastEditedBy;
+      driveLastEditedAt = payload.lastEditedAt;
+      driveBaselineEditedAt = payload.lastEditedAt;
+      renderAll();
+      autosave();
+      DriveAuth.saveSession(driveUsername, drivePassword, Object.assign({}, payload));
+      const t = new Date();
+      const summary = `${addedCount} nieuw, ${unchangedCount} ongewijzigd` +
+        (mineWonCount || cloudWonCount ? `, ${mineWonCount} keer jouw versie behouden, ${cloudWonCount} keer cloud-versie behouden` : "");
+      setDriveStatus("✓ Samengevoegd om " + t.toLocaleTimeString("nl-BE").slice(0,5) + " (" + summary + ")", "ok");
+    } catch (err){
+      setDriveStatus("⚠ Kon niet verbinden met Drive", "err");
+    }
+  }
+
+  async function driveWrite(){
+    setDriveStatus("Bezig met controleren op wijzigingen…", "busy");
+
+    try {
+      const checkData = await DriveAuth.fetchFullSync(drivePassword);
+      const remoteEditedAt = checkData.lastEditedAt || null;
+      const remoteEditedBy = checkData.lastEditedBy || "iemand";
+      const isConflict = driveBaselineEditedAt !== null && remoteEditedAt !== driveBaselineEditedAt;
+      if (isConflict){
+        const when = remoteEditedAt ? new Date(remoteEditedAt).toLocaleString("nl-BE") : "een onbekend moment";
+        const proceed = confirm(
+          "Let op: " + remoteEditedBy + " heeft op " + when + " al iets weggeschreven sinds jij laatst hebt geladen.\n\n" +
+          "Als je nu doorgaat, overschrijf je die versie met de jouwe.\n\n" +
+          "Klik op Annuleren om eerst “⬇️ Laden vanuit Drive” te doen en je wijzigingen daarna handmatig over te nemen.\n" +
+          "Klik op OK om toch te overschrijven."
+        );
+        if (!proceed){
+          setDriveStatus("Wegschrijven geannuleerd — eerst laden aangeraden.", "err");
+          return;
+        }
+        applyUnknownFields(checkData);
+      }
+    } catch (err){
+      setDriveStatus("⚠ Kon niet verbinden met Drive", "err");
+      if (!confirm("Kon geen verbinding maken met Drive om op conflicten te controleren.\n\nToch proberen wegschrijven?")) return;
+    }
+
+    setDriveStatus("Bezig met wegschrijven naar Drive…", "busy");
+    const payload = Object.assign({}, driveUnknownFields, {
+      collection,
+      currentId,
+      lastEditedBy: driveUsername || "(naamloos)",
+      lastEditedAt: Date.now()
+    });
+    try {
+      const res = await fetch(DriveAuth.driveUrl(drivePassword), {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.error){
+        setDriveStatus("⚠ Wegschrijven mislukt" + (data.error ? ": " + data.error : ""), "err");
+        return;
+      }
+      driveLastEditedBy = payload.lastEditedBy;
+      driveLastEditedAt = payload.lastEditedAt;
+      driveBaselineEditedAt = payload.lastEditedAt;
+      DriveAuth.saveSession(driveUsername, drivePassword, Object.assign({}, payload));
+      const t = new Date();
+      setDriveStatus("✓ Weggeschreven om " + t.toLocaleTimeString("nl-BE").slice(0,5) + " door " + driveLastEditedBy, "ok");
+    } catch (err){
+      setDriveStatus("⚠ Kon niet verbinden met Drive", "err");
+    }
+  }
+
+  // Ontvangt "bewerk deze kaart"-verzoeken vanuit andere modules (bv. Collectie),
+  // doorgestuurd via de shell.
+  window.addEventListener("message", function(e){
+    if (e.data && e.data.type === "wizards:select-card" && findCard(e.data.cardId)){
+      selectCard(e.data.cardId);
+    }
+  });
+
+  // ---------- Save/Laad-knoppen ----------
+  // Ingebed in de shell (index.html, sinds 2026-08-17): de shell heeft zijn
+  // eigen, permanente Save/Laad-balk die commando's via postMessage naar
+  // deze iframe stuurt (zie "Reageert op commando's vanuit de shell"
+  // hieronder). Dit vervangt de vorige aanpak waarbij deze module zijn eigen
+  // knoppen live in de shell-balk probeerde te hangen (adoptNode tussen
+  // iframes) — dat bleek onbetrouwbaar en gaf net de dubbele balk die het
+  // moest voorkomen. Standalone geopend (rechtstreeks dit bestand, niet via
+  // de shell): deze module toont gewoon zijn eigen lokale knoppenrij.
+  function buildDropdown(label, primary, items){
+    const wrap = document.createElement("div");
+    wrap.style.cssText = "position:relative; display:inline-block;";
+
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.textContent = label + " \u25BE";
+    toggle.style.cssText = "font-family:var(--font-ui); font-size:13px; cursor:pointer; white-space:nowrap;" +
+      "border-radius:5px; padding:8px 14px; transition:border-color .15s, background .15s;" +
+      (primary
+        ? "background:linear-gradient(180deg,#2f2743,#251f38); border:1px solid var(--gold); color:var(--gold-soft);"
+        : "background:var(--panel-2); border:1px solid var(--border); color:var(--ink-light);");
+
+    const list = document.createElement("div");
+    list.style.cssText = "display:none; position:absolute; top:calc(100% + 4px); left:0; z-index:20; min-width:220px;" +
+      "background:var(--panel); border:1px solid var(--border); border-radius:7px; padding:5px;" +
+      "box-shadow:0 10px 24px rgba(0,0,0,0.45); flex-direction:column; gap:2px;";
+
+    items.forEach(item => {
+      let itemEl;
+      if (item.fileInput){
+        itemEl = document.createElement("label");
+        itemEl.style.cssText = "position:relative; overflow:hidden; display:block; font-size:13px; color:var(--ink-light);" +
+          "padding:8px 10px; border-radius:5px; cursor:pointer; white-space:nowrap;";
+        itemEl.textContent = item.label;
+        itemEl.addEventListener("mouseenter", () => { itemEl.style.background = "#2a2338"; });
+        itemEl.addEventListener("mouseleave", () => { itemEl.style.background = "none"; });
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = "application/json,.json";
+        input.multiple = true;
+        input.style.cssText = "position:absolute; inset:0; opacity:0; cursor:pointer; font-size:200px;";
+        input.addEventListener("change", (e) => {
+          if (e.target.files && e.target.files.length) loadFromFiles(e.target.files);
+          e.target.value = "";
+        });
+        itemEl.appendChild(input);
+      } else {
+        itemEl = document.createElement("button");
+        itemEl.type = "button";
+        itemEl.textContent = item.label;
+        itemEl.style.cssText = "display:block; width:100%; text-align:left; font-size:13px; color:var(--ink-light);" +
+          "background:none; border:none; padding:8px 10px; border-radius:5px; cursor:pointer; white-space:nowrap;";
+        itemEl.addEventListener("mouseenter", () => { itemEl.style.background = "#2a2338"; });
+        itemEl.addEventListener("mouseleave", () => { itemEl.style.background = "none"; });
+        itemEl.addEventListener("click", item.onClick);
+      }
+      list.appendChild(itemEl);
+    });
+
+    function closeDropdown(){ list.style.display = "none"; }
+
+    toggle.addEventListener("click", (e) => {
+      e.stopPropagation();
+      list.style.display = (list.style.display === "flex") ? "none" : "flex";
+    });
+
+    wrap.appendChild(toggle);
+    wrap.appendChild(list);
+    wrap._toggle = toggle;
+    wrap._closeDropdown = closeDropdown;
+    return wrap;
+  }
+
+  function mountStandaloneDriveActions(){
+    const bar = document.createElement("div");
+    bar.id = "cb-drive-actions";
+    bar.style.cssText = "display:flex; align-items:center; gap:8px; flex-wrap:wrap;";
+
+    const saveMenu = buildDropdown("\uD83D\uDCBE Save .json", true, [
+      { label: "\u2B06\uFE0F Naar Drive", onClick: driveWrite },
+      { label: "\u2B07\uFE0F Lokaal", onClick: exportCollection }
+    ]);
+    const loadMenu = buildDropdown("\uD83D\uDCC2 Laad .json", false, [
+      { label: "\u2B07\uFE0F Van Drive", onClick: driveLoad },
+      { label: "\uD83D\uDCC1 Van lokaal", fileInput: true },
+      { label: "\uD83D\uDD00 Samenvoegen met Drive", onClick: driveMerge }
+    ]);
+
+    const dropdowns = [saveMenu, loadMenu];
+    dropdowns.forEach(d => {
+      d._toggle.addEventListener("click", () => {
+        dropdowns.forEach(other => { if (other !== d) other._closeDropdown(); });
+      });
+    });
+
+    bar.appendChild(saveMenu);
+    bar.appendChild(loadMenu);
+    document.addEventListener("click", () => { dropdowns.forEach(d => d._closeDropdown()); });
+
+    const localBar = document.getElementById("drive-bar");
+    if (localBar) localBar.appendChild(bar);
+  }
+
+  const embeddedInShell = window.self !== window.top;
+  if (embeddedInShell){
+    // De shell (index.html) toont en bedient de knoppen nu zelf — deze lokale
+    // balk (met enkel de hoedbubbel/statustekst, die de shell ook al zelf
+    // toont) blijft dus verborgen.
+    const localBar = document.getElementById("drive-bar");
+    if (localBar) localBar.style.display = "none";
+  } else {
+    mountStandaloneDriveActions();
+  }
+
+  // ---------- Reageert op commando's vanuit de shell (index.html) ----------
+  // Enkel relevant wanneer ingebed: de centrale Save/Laad-balk in de shell
+  // stuurt deze commando's door, omdat deze module de collectie (en de
+  // Drive-inloggegevens) in geheugen heeft.
+  window.addEventListener("message", function(e){
+    if (!e.data || typeof e.data !== "object") return;
+    if (e.data.type === "wizards:drive-save-to-drive"){ driveWrite(); return; }
+    if (e.data.type === "wizards:drive-save-local"){ exportCollection(); return; }
+    if (e.data.type === "wizards:drive-load-from-drive"){ driveLoad(); return; }
+    if (e.data.type === "wizards:drive-merge"){ driveMerge(); return; }
+    if (e.data.type === "wizards:drive-load-local-files" && e.data.files){ loadFromFiles(e.data.files); return; }
+  });
+
+
+  // De hoed-avatarbubbel wordt centraal door shared/drive-auth.js gerenderd
+  // (zie updateDriveUserLabel aldaar) vóór onSuccess hieronder al aangeroepen
+  // wordt — hier enkel nog een refresh voor het geval driveUsername nadien
+  // wijzigt (komt in de praktijk niet voor, maar houdt dit veilig/idempotent).
+  function updateDriveUserLabelLocal(){
+    const el = document.getElementById("drive-user-label");
+    if (!el) return;
+    if (window.HatAvatar) HatAvatar.renderBubble(el, driveUsername, { password: drivePassword });
+    else el.innerHTML = driveUsername ? "Ingelogd als <b>" + escapeHtml(driveUsername) + "</b>" : "";
+  }
+
+  DriveAuth.initLoginOverlay({
+    appTitle: "Wizards — Kaartbuilder",
+    onSuccess: function(data, session){
+      driveUsername = session.username;
+      drivePassword = session.password;
+      collection = Array.isArray(data.collection) ? data.collection.map(normalizeCard) : [];
+      currentId = data.currentId && collection.find(c => c.id === data.currentId) ? data.currentId : (collection[0] ? collection[0].id : null);
+      applyUnknownFields(data);
+      driveLastEditedBy = data.lastEditedBy || "";
+      driveLastEditedAt = data.lastEditedAt || null;
+      driveBaselineEditedAt = driveLastEditedAt;
+      updateDriveUserLabelLocal();
+      renderAll();
+      autosave();
+      checkAutosave();
+    }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1736 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#15121c">
+<title>Wizards — Mobile</title>
+
+<!-- PWA: laat toe om als fullscreen app op het startscherm te zetten ("Toevoegen
+     aan startscherm" in Chrome). Werkt enkel wanneer dit bestand over https
+     (of localhost) gehost wordt — file:// ondersteunt geen manifest/serviceworker. -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Wizards">
+
+<link rel="stylesheet" href="shared/login-overlay.css">
+<link rel="stylesheet" href="shared/card-render.css">
+<link rel="stylesheet" href="shared/hat-avatar.css">
+<style>
+  :root{
+    --bg: #15121c;
+    --bg-vignette: radial-gradient(ellipse at 50% -10%, #241d33 0%, #15121c 55%);
+    --panel: #1e1a29;
+    --panel-2: #241f33;
+    --border: #362c49;
+    --border-soft: #2a2338;
+    --ink-light: #d9d2e8;
+    --ink-muted: #9788b3;
+    --ink-dim: #6f6288;
+    --gold: #c9a24b;
+    --gold-soft: #e2c583;
+    --parchment: #efe6d1;
+    --parchment-dark: #e2d5b5;
+    --parchment-ink: #2c2318;
+    --parchment-chip: #b7a578;
+    --parchment-chip-border: #8f7d4f;
+
+    --c-wizard: #3d5a80;
+    --c-manifestation: #3f6b4a;
+    --c-incantation: #9c3b4f;
+    --c-hex: #5b4b8a;
+    --c-destiny: #b8933a;
+    --c-burden: #5c4a3a;
+
+    --t-fire: #c1462b;
+    --t-earth: #6b5636;
+    --t-water: #2f6f8f;
+    --t-sky: #6fa8c9;
+    --t-shadow: #4a3a5c;
+    --t-light: #b9a666;
+
+    --font-display: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', serif;
+    --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: 'SF Mono', Consolas, Monaco, monospace;
+
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --tap: 46px;
+  }
+
+  *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+  html,body{ height:100%; overscroll-behavior-y: none; }
+  body{
+    margin:0; background: var(--bg-vignette); color: var(--ink-light);
+    font-family: var(--font-ui); font-size:16px; min-height:100vh;
+    padding-bottom: calc(64px + var(--safe-bottom));
+    -webkit-user-select:none; user-select:none;
+  }
+  input, textarea{ -webkit-user-select:text; user-select:text; }
+  button{ font-family:inherit; -webkit-user-select:none; }
+
+  /* generic buttons */
+  .btn{
+    font-family: var(--font-ui); font-size:14px; background: var(--panel-2);
+    color: var(--ink-light); border:1px solid var(--border); padding:11px 14px;
+    border-radius:8px; cursor:pointer; min-height:var(--tap);
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  }
+  .btn:active{ background:#2a2338; }
+  .btn.primary{ background: linear-gradient(180deg,#3d2c10,#221808); border-color: var(--gold); color: var(--gold-soft); }
+  .btn.danger{ color:#e79aaa; border-color:#5c2c38; }
+  .btn.block{ width:100%; }
+  .btn.small{ min-height:38px; padding:7px 12px; font-size:12.5px; }
+  .btn:disabled{ opacity:.35; }
+  .btn.file-btn{ position:relative; overflow:hidden; }
+  .btn.file-btn input[type=file]{ position:absolute; inset:0; opacity:0; cursor:pointer; }
+
+  /* ---------- Top bar ---------- */
+  #topbar{
+    position:sticky; top:0; z-index:50;
+    padding: calc(10px + var(--safe-top)) 14px 10px;
+    background: linear-gradient(180deg, #1c1728, #171224);
+    border-bottom:1px solid var(--border);
+    display:flex; align-items:center; gap:10px;
+  }
+  #topbar .app-title{ font-family: var(--font-display); font-size:16.5px; color: var(--gold-soft); flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #topbar .icon-btn{
+    width:var(--tap); height:var(--tap); border-radius:50%; flex-shrink:0;
+    background: var(--panel-2); border:1px solid var(--border); color: var(--ink-light);
+    display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer;
+  }
+  #topbar .icon-btn:active{ border-color: var(--gold); }
+  #drive-user-label{ display:flex; align-items:center; flex-shrink:0; }
+  #drive-status-mini{ font-size:10.5px; color: var(--ink-dim); position:absolute; top:2px; right:14px; }
+
+  /* ---------- Bottom nav ---------- */
+  #bottom-nav{
+    position:fixed; left:0; right:0; bottom:0; z-index:60;
+    display:flex; background:#191423; border-top:1px solid var(--border);
+    padding-bottom: var(--safe-bottom);
+  }
+  #bottom-nav .nav-btn{
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:2px; padding:9px 4px 8px; background:none; border:none; color: var(--ink-dim);
+    font-size:10.5px; cursor:pointer; min-height:60px;
+  }
+  #bottom-nav .nav-btn .nav-icon{ font-size:21px; line-height:1; }
+  #bottom-nav .nav-btn.active{ color: var(--gold-soft); }
+  #bottom-nav .nav-btn.active .nav-icon{ filter: drop-shadow(0 0 6px rgba(201,162,75,0.5)); }
+  #bottom-nav .nav-badge{
+    position:absolute; margin-left:14px; margin-top:-2px; background: var(--gold); color:#221808;
+    font-size:9px; font-weight:700; border-radius:8px; padding:1px 5px; min-width:14px; text-align:center;
+  }
+
+  main{ padding: 12px 14px 24px; }
+  .view{ display:none; }
+  .view.active{ display:block; }
+
+  /* ---------- Collectie tab ---------- */
+  #col-search-row{ display:flex; gap:8px; margin-bottom:10px; position:sticky; top:53px; z-index:30; background: var(--bg); padding:6px 0; }
+  #col-search-row input{
+    flex:1; min-width:0; background: var(--panel); border:1px solid var(--border); color: var(--ink-light);
+    padding:11px 12px; border-radius:8px; font-size:15px; min-height:var(--tap);
+  }
+  #col-search-row .icon-btn{
+    width:var(--tap); height:var(--tap); border-radius:8px; flex-shrink:0; position:relative;
+    background: var(--panel-2); border:1px solid var(--border); color: var(--ink-light);
+    display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer;
+  }
+  #col-search-row .icon-btn.filters-active{ border-color: var(--gold); color: var(--gold-soft); }
+  #col-filter-dot{
+    position:absolute; top:6px; right:6px; width:8px; height:8px; border-radius:50%;
+    background: var(--gold); display:none;
+  }
+
+  #col-count{ font-size:12px; color: var(--ink-dim); margin: 0 0 10px; }
+
+  #col-list{ display:flex; flex-direction:column; gap:8px; }
+  .card-row{
+    display:flex; align-items:center; gap:10px;
+    background: var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:9px 10px; cursor:pointer; min-height:60px;
+  }
+  .card-row:active{ border-color: var(--gold); background:#241f33; }
+  .card-row .row-swatch{ width:11px; height:11px; border-radius:50%; flex-shrink:0; }
+  .card-row .row-text{ flex:1; min-width:0; }
+  .card-row .row-name{ font-size:15px; color: var(--ink-light); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-family: var(--font-display); }
+  .card-row .row-meta{ font-size:11.5px; color: var(--ink-dim); text-transform:uppercase; letter-spacing:0.4px; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .card-row .row-status{ font-size:10px; padding:3px 7px; border-radius:9px; border:1px solid var(--border); color: var(--ink-dim); flex-shrink:0; }
+  #col-empty{ padding:50px 16px; text-align:center; color: var(--ink-dim); font-size:14px; line-height:1.6; }
+
+  /* ---------- Bottom sheet (generic) ---------- */
+  .sheet-backdrop{
+    position:fixed; inset:0; background: rgba(10,8,15,0.6); z-index:200;
+    opacity:0; pointer-events:none; transition: opacity .18s;
+  }
+  .sheet-backdrop.show{ opacity:1; pointer-events:auto; }
+  .sheet{
+    position:fixed; left:0; right:0; bottom:0; z-index:201;
+    background: var(--panel); border-top:1px solid var(--gold);
+    border-radius:16px 16px 0 0; max-height:88vh; overflow-y:auto;
+    transform: translateY(100%); transition: transform .22s ease-out;
+    padding: 10px 16px calc(18px + var(--safe-bottom));
+    box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+  }
+  .sheet.show{ transform: translateY(0); }
+  .sheet-handle{ width:38px; height:4px; background: var(--border); border-radius:3px; margin: 4px auto 12px; }
+  .sheet-title{ font-family: var(--font-display); font-size:16px; color: var(--gold-soft); margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; }
+  .sheet-title .sheet-close{ background:none; border:none; color: var(--ink-dim); font-size:20px; cursor:pointer; padding:4px 8px; }
+
+  /* Filter sheet */
+  .filter-field{ margin-bottom:14px; }
+  .filter-field label{ display:block; font-size:11px; text-transform:uppercase; letter-spacing:0.6px; color: var(--ink-dim); margin-bottom:6px; }
+  .filter-field select{
+    width:100%; background: var(--bg); border:1px solid var(--border); color: var(--ink-light);
+    padding:11px 10px; border-radius:8px; font-size:15px; min-height:var(--tap);
+  }
+  .filter-actions{ display:flex; gap:8px; margin-top:6px; position:sticky; bottom:0; background:var(--panel); padding-top:8px; }
+
+  /* Card detail sheet */
+  #detail-preview-mount{ display:flex; justify-content:center; margin-bottom:14px; }
+  #detail-preview-mount .card-frame{ transform: scale(0.92); transform-origin: top center; }
+  .detail-actions{ display:flex; flex-direction:column; gap:8px; }
+  .detail-actions-row{ display:flex; gap:8px; }
+  .detail-actions-row .btn{ flex:1; }
+  .detail-meta{ font-size:11.5px; color: var(--ink-dim); text-align:center; margin: 4px 0 14px; line-height:1.5; }
+
+  /* ---------- Editor tab ---------- */
+  #editor-empty{ text-align:center; color: var(--ink-dim); padding:60px 20px; font-size:14.5px; line-height:1.7; }
+  #editor-empty .btn{ margin-top:16px; }
+
+  #editor-preview-strip{
+    display:flex; align-items:center; gap:12px; background: var(--panel);
+    border:1px solid var(--border); border-radius:10px; padding:10px; margin-bottom:14px; cursor:pointer;
+  }
+  #editor-preview-strip .strip-thumb{ width:52px; height:73px; border-radius:5px; overflow:hidden; flex-shrink:0; background: var(--panel-2); display:flex; align-items:center; justify-content:center; }
+  #editor-preview-strip .strip-thumb .card-frame{ transform: scale(0.148); transform-origin: top left; width:352px; }
+  #editor-preview-strip .strip-text{ flex:1; min-width:0; }
+  #editor-preview-strip .strip-name{ font-family: var(--font-display); font-size:15.5px; color: var(--gold-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #editor-preview-strip .strip-hint{ font-size:11.5px; color: var(--ink-dim); margin-top:2px; }
+  #editor-preview-strip .strip-eye{ font-size:20px; flex-shrink:0; color: var(--ink-dim); }
+
+  .accordion{ border:1px solid var(--border); border-radius:10px; margin-bottom:10px; overflow:hidden; background: var(--panel); }
+  .accordion-head{
+    display:flex; align-items:center; justify-content:space-between; padding:13px 14px;
+    cursor:pointer; min-height:var(--tap); background: var(--panel-2);
+  }
+  .accordion-head .ah-title{ font-size:11.5px; text-transform:uppercase; letter-spacing:0.8px; color: var(--gold); }
+  .accordion-head .ah-chevron{ color: var(--ink-dim); font-size:13px; transition: transform .15s; }
+  .accordion.open .ah-chevron{ transform: rotate(90deg); }
+  .accordion-body{ display:none; padding:14px; }
+  .accordion.open .accordion-body{ display:block; }
+
+  .field{ margin-bottom:14px; }
+  .field:last-child{ margin-bottom:0; }
+  .field label{ display:block; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color: var(--ink-dim); margin-bottom:6px; }
+  .field input[type=text], .field input[type=number], .field select, .field textarea{
+    width:100%; background: var(--bg); border:1px solid var(--border); color: var(--ink-light);
+    padding:12px 12px; border-radius:8px; font-size:16px; font-family: var(--font-ui); min-height:var(--tap);
+  }
+  .field input:focus, .field select:focus, .field textarea:focus{ outline:none; border-color: var(--gold); }
+  .field textarea{ resize:vertical; line-height:1.5; min-height:80px; }
+  #f-name{ font-family: var(--font-display); font-size:17px; }
+
+  .field-2col{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+  /* number steppers */
+  .stepper{ display:flex; align-items:center; gap:0; border:1px solid var(--border); border-radius:8px; overflow:hidden; background: var(--bg); }
+  .stepper button{
+    width:44px; height:44px; flex-shrink:0; background: var(--panel-2); border:none; color: var(--gold-soft);
+    font-size:19px; cursor:pointer;
+  }
+  .stepper button:active{ background:#332b48; }
+  .stepper input{
+    flex:1; text-align:center; border:none; background:transparent; color: var(--ink-light);
+    font-size:16px; padding:10px 2px; min-width:0; -moz-appearance:textfield;
+  }
+  .stepper input::-webkit-outer-spin-button, .stepper input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+  .stepper-row{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+  .stepper-row:last-child{ margin-bottom:0; }
+  .stepper-label{ font-size:11px; color: var(--ink-dim); display:flex; align-items:center; gap:5px; margin-bottom:6px; }
+
+  .subtype-chip-row{ display:flex; flex-wrap:wrap; gap:8px; }
+  .subtype-chip-row .subtype-chip{
+    display:inline-flex; align-items:center; gap:6px; background: var(--bg); border:1px solid var(--border);
+    border-radius:16px; padding:9px 14px; font-size:13.5px; color: var(--ink-muted); cursor:pointer; min-height:40px;
+  }
+  .subtype-chip-row .subtype-chip.checked{ border-color: var(--gold); color: var(--gold-soft); background:#2a2338; }
+  .subtype-chip-row .subtype-chip input{ display:none; }
+
+  .tag-chips{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+  .tag-chip{
+    display:inline-flex; align-items:center; gap:7px; background: var(--panel-2); border:1px solid var(--gold);
+    color: var(--gold-soft); border-radius:16px; padding:7px 8px 7px 13px; font-size:13.5px;
+  }
+  .tag-chip button{ background:none; border:none; color: var(--ink-dim); cursor:pointer; font-size:16px; line-height:1; padding:2px; }
+
+  #group-image{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  #img-preview-thumb{
+    width:64px; height:64px; border-radius:8px; border:1px solid var(--border);
+    background-size:cover; background-position:center; background-color: var(--panel-2); flex-shrink:0;
+  }
+  #group-image .img-btns{ display:flex; flex-direction:column; gap:8px; flex:1; min-width:140px; }
+
+  #meta-info{ font-size:11.5px; color: var(--ink-dim); text-align:center; margin-top:10px; line-height:1.5; }
+
+  .effect-row{ background: var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:10px; }
+  .effect-row-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+  .effect-row-head .effect-index{ font-size:11px; text-transform:uppercase; letter-spacing:0.6px; color: var(--gold); }
+  .effect-row-head button{ background:none; border:1px solid var(--border); color: var(--ink-dim); cursor:pointer; font-size:11.5px; padding:5px 10px; border-radius:6px; }
+  .effect-fields{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+  .effect-fields .field{ margin-bottom:0; }
+  .effect-fields select, .effect-fields input{ font-size:14px; padding:10px; min-height:42px; }
+  .effect-cost-row{ display:flex; flex-direction:column; gap:10px; padding-top:8px; border-top:1px solid var(--border-soft); }
+  .effect-cost-row label{ font-size:12.5px; color: var(--ink-dim); display:flex; align-items:center; gap:8px; }
+  .effect-cost-row input[type=number]{ width:64px; background: var(--panel); border:1px solid var(--border); color: var(--ink-light); padding:8px; border-radius:6px; text-align:center; }
+  .effect-cost-row input[type=checkbox]{ width:19px; height:19px; accent-color: var(--gold); }
+  .automation-hint{ font-size:12px; color: var(--ink-dim); margin-bottom:12px; line-height:1.5; }
+
+  /* editor sticky action bar */
+  #editor-actionbar{
+    position:sticky; bottom: calc(64px + var(--safe-bottom)); z-index:40;
+    display:flex; gap:8px; padding:10px 0 2px; margin-top:6px;
+    background: linear-gradient(0deg, var(--bg) 60%, transparent);
+  }
+  #editor-actionbar .btn{ flex:1; }
+
+  /* ---------- Deck tab ---------- */
+  #deck-select-row{ display:flex; gap:8px; margin-bottom:12px; }
+  #deck-select-row select{
+    flex:1; min-width:0; background: var(--panel); border:1px solid var(--border); color: var(--ink-light);
+    padding:11px 10px; border-radius:8px; font-size:15px; min-height:var(--tap);
+  }
+  #deck-name-field{ margin-bottom:12px; }
+  #deck-name-field input{
+    width:100%; background: var(--panel); border:1px solid var(--border); color: var(--ink-light);
+    padding:11px 12px; border-radius:8px; font-size:16px; font-family: var(--font-display); min-height:var(--tap);
+  }
+  .deck-toolbar{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+  .deck-toolbar .btn{ flex:1 1 auto; }
+  #deck-stats{ display:flex; flex-wrap:wrap; gap:7px; margin-bottom:14px; }
+  .stat-pill{
+    display:flex; align-items:center; gap:6px; background: var(--panel); border:1px solid var(--border);
+    border-radius:14px; padding:5px 11px; font-size:12px;
+  }
+  .stat-pill .swatch{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .stat-pill b{ color: var(--ink-light); font-family: var(--font-mono); }
+  .stat-pill.total{ border-color: var(--gold); color: var(--gold-soft); }
+
+  .deck-card-row{
+    display:flex; align-items:center; gap:10px; background: var(--panel); border:1px solid var(--border);
+    border-radius:10px; padding:9px 10px; margin-bottom:8px;
+  }
+  .deck-card-row .dc-name{ flex:1; min-width:0; font-size:14.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .deck-card-row .dc-qty-ctrl{ display:flex; align-items:center; gap:0; border:1px solid var(--border); border-radius:7px; overflow:hidden; }
+  .deck-card-row .dc-qty-ctrl button{ width:36px; height:36px; background: var(--panel-2); border:none; color: var(--gold-soft); font-size:16px; cursor:pointer; }
+  .deck-card-row .dc-qty-ctrl span{ width:28px; text-align:center; font-family: var(--font-mono); font-size:14px; }
+  #deck-empty, #deck-list-empty{ text-align:center; color: var(--ink-dim); padding:40px 16px; font-size:14px; line-height:1.6; }
+
+  /* Toast */
+  #toast{
+    position:fixed; left:50%; bottom: calc(78px + var(--safe-bottom)); transform: translateX(-50%) translateY(10px);
+    background: var(--panel); border:1px solid var(--gold); color: var(--gold-soft);
+    padding:11px 18px; border-radius:20px; font-size:13.5px; box-shadow:0 8px 22px rgba(0,0,0,0.5);
+    opacity:0; pointer-events:none; transition: opacity .18s, transform .18s; z-index:300; max-width:88vw; text-align:center;
+  }
+  #toast.show{ opacity:1; transform: translateX(-50%) translateY(0); }
+
+  #autosave-banner{
+    background:#2a2338; border:1px solid var(--gold); color: var(--ink-light);
+    padding:11px 14px; font-size:12.5px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+    margin: 10px 14px 0; border-radius:8px;
+  }
+  #autosave-banner button{ background:none; border:1px solid var(--border); color:var(--ink-light); border-radius:6px; padding:7px 11px; cursor:pointer; font-size:12px; min-height:36px; }
+
+  /* Sync sheet */
+  .sync-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+  .sync-grid .btn{ flex-direction:column; gap:4px; padding:14px 8px; font-size:12.5px; text-align:center; line-height:1.3; }
+  .sync-grid .btn .sg-icon{ font-size:22px; }
+  #sync-status-line{ font-size:12.5px; color: var(--ink-dim); text-align:center; margin: 4px 0 14px; line-height:1.5; }
+
+  @media (min-width: 620px){
+    main{ max-width:560px; margin:0 auto; }
+    #topbar > div, #bottom-nav{ max-width:620px; margin:0 auto; }
+    .sheet{ max-width:620px; margin:0 auto; }
+  }
+</style>
+</head>
+<body>
+
+<div id="login-overlay">
+  <div class="login-card">
+    <div class="login-sigil">⟡</div>
+    <h2>Wizards — Mobile</h2>
+    <p class="login-sub">Log in om verder te gaan.</p>
+
+    <div id="login-form-fields">
+      <label for="login-username">Naam</label>
+      <input type="text" id="login-username" placeholder="Je naam (vrij te kiezen)" autocomplete="off">
+      <label for="login-password">Wachtwoord</label>
+      <input type="password" id="login-password" placeholder="Wachtwoord voor de Drive-sync" autocomplete="off">
+      <label style="display:flex; align-items:center; gap:8px; font-size:13px; margin:10px 0 0; cursor:pointer;">
+        <input type="checkbox" id="login-remember" style="width:18px;height:18px;"> Wachtwoord onthouden op dit toestel
+      </label>
+      <button class="btn primary block" id="btn-login" style="margin-top:14px;">Inloggen</button>
+      <a href="#" id="btn-login-forget" style="display:none; font-size:12px; color:var(--ink-dim); margin-top:10px;">Onthouden wachtwoord vergeten</a>
+    </div>
+
+    <div id="login-status"></div>
+
+    <div id="login-lastedit" style="display:none;">
+      <p id="login-lastedit-text"></p>
+      <button class="btn primary block" id="btn-login-continue">Verdergaan</button>
+    </div>
+  </div>
+</div>
+
+<div id="app" style="display:none;">
+
+  <div id="topbar">
+    <button class="icon-btn" id="btn-open-sync" title="Synchroniseren">🔄</button>
+    <div class="app-title">Wizards</div>
+    <span id="drive-user-label"></span>
+  </div>
+
+  <div id="autosave-banner" style="display:none;">
+    <span>Niet-opgeslagen sessie gevonden.</span>
+    <button id="btn-restore">Herstellen</button>
+    <button id="btn-dismiss-autosave">Negeren</button>
+  </div>
+
+  <main>
+    <!-- ===================== COLLECTIE ===================== -->
+    <section id="view-collectie" class="view active">
+      <div id="col-search-row">
+        <input type="text" id="col-search" placeholder="Zoek kaarten…">
+        <button class="icon-btn" id="btn-open-filters">🔍<span id="col-filter-dot"></span></button>
+      </div>
+      <div id="col-count"></div>
+      <div id="col-list"></div>
+      <div id="col-empty" style="display:none;">Nog geen kaarten in de collectie.<br>Maak er een aan via het tabblad "Editor".</div>
+    </section>
+
+    <!-- ===================== EDITOR ===================== -->
+    <section id="view-editor" class="view">
+      <div id="editor-empty">
+        Selecteer een kaart in de Collectie, of maak een nieuwe kaart aan.
+        <br>
+        <button class="btn primary" id="btn-new-from-empty">🪄 Nieuwe kaart</button>
+      </div>
+
+      <div id="editor-content" style="display:none;">
+        <div id="editor-preview-strip">
+          <div class="strip-thumb"><div id="strip-preview-mount"></div></div>
+          <div class="strip-text">
+            <div class="strip-name" id="strip-name">—</div>
+            <div class="strip-hint">Tik om volledig voorbeeld te bekijken</div>
+          </div>
+          <div class="strip-eye">👁</div>
+        </div>
+
+        <form id="card-form" autocomplete="off">
+
+          <div class="accordion open" data-acc="basis">
+            <div class="accordion-head"><span class="ah-title">Basis</span><span class="ah-chevron">›</span></div>
+            <div class="accordion-body">
+              <div class="field">
+                <label for="f-name">Naam</label>
+                <input type="text" id="f-name" placeholder="Kaartnaam">
+              </div>
+              <div class="field">
+                <label for="f-type">Kaarttype</label>
+                <select id="f-type">
+                  <option value="Wizard">Wizard</option>
+                  <option value="Manifestation">Manifestation</option>
+                  <option value="Incantation">Incantation</option>
+                  <option value="Hex">Hex</option>
+                  <option value="Destiny">Destiny</option>
+                  <option value="Burden">Burden</option>
+                </select>
+              </div>
+              <div class="field-2col">
+                <div class="field" id="group-theme">
+                  <label for="f-theme">Theme</label>
+                  <select id="f-theme">
+                    <option value="">— geen —</option>
+                    <option value="Fire">Fire</option>
+                    <option value="Earth">Earth</option>
+                    <option value="Water">Water</option>
+                    <option value="Sky">Sky</option>
+                    <option value="Shadow">Shadow</option>
+                    <option value="Light">Light</option>
+                  </select>
+                </div>
+                <div class="field" id="group-location">
+                  <label for="f-location">Location</label>
+                  <select id="f-location">
+                    <option value="">— geen —</option>
+                    <option value="The Citadel">The Citadel</option>
+                    <option value="The Harbour">The Harbour</option>
+                    <option value="The Barrow">The Barrow</option>
+                    <option value="The Maw">The Maw</option>
+                    <option value="The Wildwood">The Wildwood</option>
+                    <option value="The Observatory">The Observatory</option>
+                  </select>
+                </div>
+              </div>
+              <div class="field">
+                <label for="f-phase">Fase</label>
+                <select id="f-phase">
+                  <option value="">— geen —</option>
+                  <option value="Starter">Starter</option>
+                  <option value="Apprentice">Apprentice</option>
+                  <option value="Journeyman">Journeyman</option>
+                  <option value="Master">Master</option>
+                </select>
+              </div>
+              <div class="field" id="group-subtypes-row" style="display:none;">
+                <label>Subtypes</label>
+                <div id="group-subtypes" class="subtype-chip-row"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="accordion open" data-acc="kosten">
+            <div class="accordion-head"><span class="ah-title">Kosten &amp; Stats</span><span class="ah-chevron">›</span></div>
+            <div class="accordion-body">
+              <div id="group-cost-fields">
+                <div class="stepper-row">
+                  <div>
+                    <div class="stepper-label">⚡ Action</div>
+                    <div class="stepper">
+                      <button type="button" data-step="f-actionCost" data-dir="-1">−</button>
+                      <input type="number" id="f-actionCost" min="0" step="1" value="0" inputmode="numeric">
+                      <button type="button" data-step="f-actionCost" data-dir="1">+</button>
+                    </div>
+                  </div>
+                  <div>
+                    <div class="stepper-label">🔥 Spite</div>
+                    <div class="stepper">
+                      <button type="button" data-step="f-spiteCost" data-dir="-1">−</button>
+                      <input type="number" id="f-spiteCost" min="0" step="1" value="0" inputmode="numeric">
+                      <button type="button" data-step="f-spiteCost" data-dir="1">+</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div id="group-stats-fields">
+                <div class="stepper-row" style="grid-template-columns:1fr;">
+                  <div>
+                    <div class="stepper-label">🛡️ Body</div>
+                    <div class="stepper">
+                      <button type="button" data-step="f-body" data-dir="-1">−</button>
+                      <input type="number" id="f-body" placeholder="—" inputmode="numeric">
+                      <button type="button" data-step="f-body" data-dir="1">+</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="stepper-row">
+                  <div>
+                    <div class="stepper-label">🧠 Mind</div>
+                    <div class="stepper">
+                      <button type="button" data-step="f-mind" data-dir="-1">−</button>
+                      <input type="number" id="f-mind" placeholder="—" inputmode="numeric">
+                      <button type="button" data-step="f-mind" data-dir="1">+</button>
+                    </div>
+                  </div>
+                  <div>
+                    <div class="stepper-label">👻 Soul</div>
+                    <div class="stepper">
+                      <button type="button" data-step="f-soul" data-dir="-1">−</button>
+                      <input type="number" id="f-soul" placeholder="—" inputmode="numeric">
+                      <button type="button" data-step="f-soul" data-dir="1">+</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="accordion open" data-acc="tekst">
+            <div class="accordion-head"><span class="ah-title">Kaarttekst</span><span class="ah-chevron">›</span></div>
+            <div class="accordion-body">
+              <div class="field">
+                <label for="f-gameText">Game text</label>
+                <textarea id="f-gameText" rows="5" placeholder="Bv. Slumber 2. Wanneer deze kaart Exhaust raakt…"></textarea>
+              </div>
+              <div class="field">
+                <label for="f-flavorText">Flavor text</label>
+                <textarea id="f-flavorText" rows="2" placeholder="Sfeertekst (optioneel)"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="accordion" data-acc="beeld">
+            <div class="accordion-head"><span class="ah-title">Kaartbeeld</span><span class="ah-chevron">›</span></div>
+            <div class="accordion-body">
+              <div id="group-image">
+                <div id="img-preview-thumb"></div>
+                <div class="img-btns">
+                  <button type="button" class="btn small file-btn">📷 Foto / kies afbeelding…
+                    <input type="file" id="f-image" accept="image/*">
+                  </button>
+                  <button type="button" class="btn small" id="btn-remove-image">Verwijder afbeelding</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="accordion" data-acc="tags">
+            <div class="accordion-head"><span class="ah-title">Tags &amp; Metadata</span><span class="ah-chevron">›</span></div>
+            <div class="accordion-body">
+              <div class="field">
+                <label for="f-status">Status</label>
+                <select id="f-status">
+                  <option value="In Design">In Design</option>
+                  <option value="Playtesting">Playtesting</option>
+                  <option value="Balancing">Balancing</option>
+                  <option value="Afgewerkt">Afgewerkt</option>
+                  <option value="Archived">Archived</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="f-createdBy">Ontworpen door</label>
+                <input type="text" id="f-createdBy" placeholder="naam van de ontwerper">
+              </div>
+              <div class="field">
+                <label for="f-tag-input">Tags (Enter om toe te voegen)</label>
+                <input type="text" id="f-tag-input" list="tag-suggestions" placeholder="bv. playtest-v1, nerf-kandidaat…">
+                <datalist id="tag-suggestions"></datalist>
+                <div id="tag-chips" class="tag-chips"></div>
+              </div>
+              <div id="meta-info"></div>
+            </div>
+          </div>
+
+          <div class="accordion" data-acc="automatisatie">
+            <div class="accordion-head"><span class="ah-title">Automatisatie — arena &amp; draft</span><span class="ah-chevron">›</span></div>
+            <div class="accordion-body">
+              <div class="automation-hint">Deze velden sturen de regel-engine / draft-tool aan. Ze staan nooit op de kaart zelf.</div>
+              <div class="field">
+                <label for="f-rarity">Rarity</label>
+                <select id="f-rarity">
+                  <option value="">— geen —</option>
+                  <option value="Common">Common</option>
+                  <option value="Uncommon">Uncommon</option>
+                  <option value="Rare">Rare</option>
+                  <option value="Signature">Signature</option>
+                </select>
+              </div>
+              <div class="field">
+                <label style="display:flex; align-items:center; gap:10px; text-transform:none; cursor:pointer;">
+                  <input type="checkbox" id="f-draftLegal" style="width:19px; height:19px; accent-color:var(--gold);">
+                  Draft-legal (mag in booster-packs)
+                </label>
+              </div>
+              <div class="field">
+                <label>Effecten</label>
+                <div id="effects-list"></div>
+                <button type="button" class="btn small block" id="btn-add-effect">+ Effect toevoegen</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="accordion" data-acc="notities">
+            <div class="accordion-head"><span class="ah-title">Ontwerpnotities</span><span class="ah-chevron">›</span></div>
+            <div class="accordion-body">
+              <div class="field">
+                <label for="f-notes">Interne notities</label>
+                <textarea id="f-notes" rows="3" placeholder="Design-overwegingen, twijfels, TODO's…"></textarea>
+              </div>
+            </div>
+          </div>
+
+        </form>
+
+        <div id="editor-actionbar">
+          <button class="btn small" id="btn-duplicate-current">⧉ Dupliceer</button>
+          <button class="btn small danger" id="btn-delete-current">🗑 Verwijder</button>
+          <button class="btn small primary" id="btn-new-from-editor">🪄 Nieuw</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== DECK ===================== -->
+    <section id="view-deck" class="view">
+      <div id="deck-select-row">
+        <select id="deck-select"></select>
+        <button class="icon-btn" id="btn-new-deck" title="Nieuw deck">➕</button>
+      </div>
+      <div id="deck-empty" style="display:none;">Nog geen decks. Tik op ➕ om te beginnen.</div>
+      <div id="deck-content" style="display:none;">
+        <div id="deck-name-field">
+          <input type="text" id="deck-panel-name" placeholder="Docknaam">
+        </div>
+        <div class="deck-toolbar">
+          <button class="btn small" id="btn-duplicate-deck">⧉ Dupliceer</button>
+          <button class="btn small danger" id="btn-delete-deck">🗑 Verwijder</button>
+          <button class="btn small" id="btn-export-deck">⬇ Export</button>
+          <button class="btn small file-btn" id="btn-import-deck-wrap">⬆ Import
+            <input type="file" id="deck-import-file" accept="application/json,.json">
+          </button>
+        </div>
+        <div id="deck-stats"></div>
+        <div id="deck-list"></div>
+        <div id="deck-list-empty" style="display:none;">Nog geen kaarten in dit deck. Voeg kaarten toe via het kaart-detail in de Collectie.</div>
+      </div>
+    </section>
+  </main>
+
+  <div id="bottom-nav">
+    <button class="nav-btn active" data-view="collectie"><span class="nav-icon">🗂️</span>Collectie</button>
+    <button class="nav-btn" data-view="editor"><span class="nav-icon">✏️</span>Editor</button>
+    <button class="nav-btn" data-view="deck"><span class="nav-icon">🎴</span>Deck</button>
+  </div>
+
+</div>
+
+<!-- ===================== SHEETS ===================== -->
+<div class="sheet-backdrop" id="sheet-backdrop"></div>
+
+<div class="sheet" id="sheet-filters">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Filters &amp; sorteren <button class="sheet-close" data-close-sheet>×</button></div>
+  <div class="filter-field"><label for="col-filter-type">Type</label><select id="col-filter-type"><option value="">Alle</option></select></div>
+  <div class="filter-field"><label for="col-filter-theme">Theme</label><select id="col-filter-theme"><option value="">Alle</option></select></div>
+  <div class="filter-field"><label for="col-filter-location">Location</label><select id="col-filter-location"><option value="">Alle</option></select></div>
+  <div class="filter-field"><label for="col-filter-tag">Tag</label><select id="col-filter-tag"><option value="">Alle</option></select></div>
+  <div class="filter-field"><label for="col-filter-phase">Fase</label><select id="col-filter-phase"><option value="">Alle</option></select></div>
+  <div class="filter-field"><label for="col-filter-status">Status</label><select id="col-filter-status"><option value="">Alle</option></select></div>
+  <div class="filter-field"><label for="col-filter-createdBy">Ontworpen door</label><select id="col-filter-createdBy"><option value="">Alle</option></select></div>
+  <div class="filter-field">
+    <label for="col-sort">Sorteer</label>
+    <select id="col-sort">
+      <option value="name-asc">Naam (A–Z)</option>
+      <option value="name-desc">Naam (Z–A)</option>
+      <option value="type">Type</option>
+      <option value="theme">Theme</option>
+      <option value="location">Location</option>
+      <option value="phase">Fase</option>
+      <option value="status">Status</option>
+      <option value="createdBy">Ontworpen door</option>
+      <option value="lastUpdated-desc">Laatst gewijzigd (nieuw eerst)</option>
+      <option value="firstCreated-desc">Aangemaakt (nieuw eerst)</option>
+      <option value="actionCost">Action-kost</option>
+      <option value="spiteCost">Spite-kost</option>
+      <option value="body">Body</option>
+      <option value="mind">Mind</option>
+      <option value="soul">Soul</option>
+    </select>
+  </div>
+  <div class="filter-actions">
+    <button class="btn block" id="btn-reset-filters">Reset filters</button>
+    <button class="btn primary block" data-close-sheet>Toepassen</button>
+  </div>
+</div>
+
+<div class="sheet" id="sheet-detail">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title"><span id="detail-title-text">Kaart</span><button class="sheet-close" data-close-sheet>×</button></div>
+  <div id="detail-preview-mount"></div>
+  <div class="detail-meta" id="detail-meta"></div>
+  <div class="detail-actions">
+    <div class="detail-actions-row">
+      <button class="btn primary" id="btn-detail-edit">✏️ Bewerken</button>
+      <button class="btn" id="btn-detail-deck">➕ Aan deck</button>
+    </div>
+    <div class="detail-actions-row">
+      <button class="btn small" id="btn-detail-duplicate">⧉ Dupliceer</button>
+      <button class="btn small danger" id="btn-detail-delete">🗑 Verwijder</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet" id="sheet-preview">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Voorbeeld <button class="sheet-close" data-close-sheet>×</button></div>
+  <div id="full-preview-mount" style="display:flex; justify-content:center; padding-bottom:10px;"></div>
+</div>
+
+<div class="sheet" id="sheet-sync">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Synchroniseren <button class="sheet-close" data-close-sheet>×</button></div>
+  <div id="sync-status-line"></div>
+  <div class="sync-grid">
+    <button class="btn primary" id="btn-drive-save"><span class="sg-icon">⬆️</span>Opslaan naar Drive</button>
+    <button class="btn" id="btn-drive-load"><span class="sg-icon">⬇️</span>Laden vanuit Drive</button>
+    <button class="btn" id="btn-drive-merge"><span class="sg-icon">🔀</span>Samenvoegen</button>
+    <button class="btn" id="btn-local-save"><span class="sg-icon">💾</span>Lokaal opslaan</button>
+  </div>
+  <button class="btn block file-btn" id="btn-local-load-wrap" style="margin-bottom:14px;">📁 Lokaal .json laden…
+    <input type="file" id="local-load-file" accept="application/json,.json" multiple>
+  </button>
+  <button class="btn block danger" id="btn-logout">Uitloggen</button>
+</div>
+
+<div id="toast"></div>
+
+<script src="shared/card-data.js"></script>
+<script src="shared/card-render.js"></script>
+<script src="shared/card-filters.js"></script>
+<script src="shared/hat-avatar.js"></script>
+<script src="shared/drive-auth.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  const STORAGE_KEY = "wizards_mobile_autosave_v1";
+  const DECKS_STORAGE_KEY = "wizards_decks_v1";
+  const ACTIVE_DECK_KEY = "wizards_active_deck_v1";
+
+  let collection = [];
+  let currentId = null;
+  let decks = [];
+  let activeDeckId = null;
+  let detailCardId = null;
+
+  let driveUsername = "";
+  let drivePassword = "";
+  let driveLastEditedBy = "";
+  let driveLastEditedAt = null;
+  let driveBaselineEditedAt = null;
+  let driveUnknownFields = {};
+
+  function $(id){ return document.getElementById(id); }
+  function findCard(id){ return collection.find(c => c.id === id) || null; }
+  function findDeck(id){ return decks.find(d => d.id === id) || null; }
+
+  function toast(msg){
+    const el = $("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => el.classList.remove("show"), 1600);
+  }
+
+  function formatMetaDate(ts){
+    if (!ts) return "onbekend";
+    return new Date(ts).toLocaleString("nl-BE", { year:"numeric", month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" });
+  }
+
+  // ---------- Sheets ----------
+  const backdrop = $("sheet-backdrop");
+  let openSheetEl = null;
+  function openSheet(id){
+    closeSheet();
+    const el = $(id);
+    if (!el) return;
+    el.classList.add("show");
+    backdrop.classList.add("show");
+    openSheetEl = el;
+    document.body.style.overflow = "hidden";
+  }
+  function closeSheet(){
+    if (openSheetEl) openSheetEl.classList.remove("show");
+    backdrop.classList.remove("show");
+    openSheetEl = null;
+    document.body.style.overflow = "";
+  }
+  backdrop.addEventListener("click", closeSheet);
+  document.querySelectorAll("[data-close-sheet]").forEach(b => b.addEventListener("click", closeSheet));
+
+  // ---------- Bottom nav / tabs ----------
+  function showView(view){
+    document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+    $("view-" + view).classList.add("active");
+    document.querySelectorAll("#bottom-nav .nav-btn").forEach(b => b.classList.toggle("active", b.dataset.view === view));
+    window.scrollTo(0, 0);
+  }
+  document.querySelectorAll("#bottom-nav .nav-btn").forEach(btn => {
+    btn.addEventListener("click", () => showView(btn.dataset.view));
+  });
+
+  // ---------- New / duplicate / delete card ----------
+  function newCard(){
+    const now = Date.now();
+    const card = normalizeCard({ createdBy: driveUsername || "", firstCreated: now, lastUpdated: now, lastUpdatedBy: driveUsername || "" });
+    collection.push(card);
+    currentId = card.id;
+    renderAll();
+    autosave();
+    showView("editor");
+    toast("Nieuwe kaart aangemaakt");
+  }
+
+  function duplicateCard(id){
+    const original = findCard(id);
+    if (!original) return;
+    const now = Date.now();
+    const copy = normalizeCard(JSON.parse(JSON.stringify(original)));
+    copy.id = uid();
+    copy.name = original.name ? original.name + " (kopie)" : "";
+    copy.firstCreated = now;
+    copy.lastUpdated = now;
+    copy.lastUpdatedBy = driveUsername || "";
+    const idx = collection.findIndex(c => c.id === id);
+    collection.splice(idx + 1, 0, copy);
+    currentId = copy.id;
+    renderAll();
+    autosave();
+    toast("Kaart gedupliceerd");
+  }
+
+  function deleteCard(id){
+    const card = findCard(id);
+    if (!card) return;
+    const label = card.name || "deze naamloze kaart";
+    if (!confirm(`"${label}" verwijderen? Dit kan niet ongedaan gemaakt worden.`)) return;
+    const idx = collection.findIndex(c => c.id === id);
+    collection.splice(idx, 1);
+    if (currentId === id) currentId = null;
+    renderAll();
+    autosave();
+    toast("Kaart verwijderd");
+    return true;
+  }
+
+  // ---------- Collectie tab ----------
+  function currentFilters(){
+    return readFilterValues("col");
+  }
+
+  function renderCollectionList(){
+    populateFilterSelects("col", collection);
+    updateFilterDot();
+
+    const list = $("col-list");
+    const emptyMsg = $("col-empty");
+    const countLabel = $("col-count");
+
+    const f = currentFilters();
+    let filtered = collection.filter(c => matchesFilters(c, f));
+    filtered = sortCards(filtered, f.sortKey);
+
+    list.innerHTML = "";
+    emptyMsg.style.display = collection.length === 0 ? "block" : "none";
+    countLabel.textContent = collection.length === 0 ? "" :
+      `${filtered.length} van ${collection.length} kaart${collection.length === 1 ? "" : "en"}`;
+
+    filtered.forEach(c => {
+      const row = document.createElement("div");
+      row.className = "card-row";
+      const swatch = document.createElement("span");
+      swatch.className = "row-swatch";
+      swatch.style.background = `var(${TYPE_COLOR_VAR[c.type]})`;
+      const textWrap = document.createElement("div");
+      textWrap.className = "row-text";
+      const nameEl = document.createElement("div");
+      nameEl.className = "row-name";
+      nameEl.textContent = c.name || "Naamloze kaart";
+      const metaEl = document.createElement("div");
+      metaEl.className = "row-meta";
+      metaEl.textContent = c.type + (c.theme ? " · " + c.theme : "") + (c.location ? " · " + c.location : "");
+      textWrap.appendChild(nameEl);
+      textWrap.appendChild(metaEl);
+      const statusEl = document.createElement("span");
+      statusEl.className = "row-status";
+      statusEl.textContent = c.status;
+      row.appendChild(swatch);
+      row.appendChild(textWrap);
+      row.appendChild(statusEl);
+      row.addEventListener("click", () => openDetail(c.id));
+      list.appendChild(row);
+    });
+  }
+
+  function updateFilterDot(){
+    const f = currentFilters();
+    const active = !!(f.type || f.theme || f.location || f.tag || f.phase || f.status || f.createdBy);
+    $("col-filter-dot").style.display = active ? "block" : "none";
+    $("btn-open-filters").classList.toggle("filters-active", active);
+  }
+
+  $("btn-open-filters").addEventListener("click", () => openSheet("sheet-filters"));
+  $("btn-reset-filters").addEventListener("click", () => {
+    ["col-filter-type","col-filter-theme","col-filter-location","col-filter-tag","col-filter-phase","col-filter-status","col-filter-createdBy"].forEach(id => { $(id).value = ""; });
+    $("col-sort").value = "name-asc";
+    renderCollectionList();
+  });
+  $("col-search").addEventListener("input", renderCollectionList);
+  ["col-filter-type","col-filter-theme","col-filter-location","col-filter-tag","col-filter-phase","col-filter-status","col-filter-createdBy","col-sort"].forEach(id =>
+    $(id).addEventListener("change", renderCollectionList));
+
+  // ---------- Card detail sheet ----------
+  function openDetail(id){
+    detailCardId = id;
+    const card = findCard(id);
+    if (!card) return;
+    $("detail-title-text").textContent = card.name || "Naamloze kaart";
+    $("detail-preview-mount").innerHTML = buildCardFrameHtml(card);
+    $("detail-meta").textContent = "Aangemaakt: " + formatMetaDate(card.firstCreated) +
+      "  ·  Laatst gewijzigd: " + formatMetaDate(card.lastUpdated) + (card.lastUpdatedBy ? " door " + card.lastUpdatedBy : "");
+    openSheet("sheet-detail");
+  }
+
+  $("btn-detail-edit").addEventListener("click", () => {
+    if (!detailCardId) return;
+    currentId = detailCardId;
+    closeSheet();
+    renderForm();
+    showView("editor");
+  });
+  $("btn-detail-deck").addEventListener("click", () => {
+    if (!detailCardId) return;
+    addCardToActiveDeck(detailCardId);
+  });
+  $("btn-detail-duplicate").addEventListener("click", () => {
+    if (!detailCardId) return;
+    duplicateCard(detailCardId);
+    closeSheet();
+  });
+  $("btn-detail-delete").addEventListener("click", () => {
+    if (!detailCardId) return;
+    if (deleteCard(detailCardId)) closeSheet();
+  });
+
+  // ---------- Editor: accordions ----------
+  document.querySelectorAll(".accordion-head").forEach(head => {
+    head.addEventListener("click", () => head.parentElement.classList.toggle("open"));
+  });
+
+  // ---------- Editor: steppers ----------
+  document.querySelectorAll(".stepper button[data-step]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const input = $(btn.dataset.step);
+      const dir = parseInt(btn.dataset.dir, 10);
+      const min = input.hasAttribute("min") ? Number(input.min) : -Infinity;
+      let cur = input.value === "" ? 0 : Number(input.value);
+      cur = Math.max(min, cur + dir);
+      input.value = cur;
+      input.dispatchEvent(new Event("input", { bubbles:true }));
+    });
+  });
+
+  // ---------- Editor: form render / sync ----------
+  function toggleGroups(type){
+    const cfg = TYPE_CONFIG[type] || TYPE_CONFIG.Manifestation;
+    $("group-theme").style.display = cfg.theme ? "block" : "none";
+    $("group-location").style.display = cfg.location ? "block" : "none";
+    $("group-cost-fields").style.display = cfg.cost ? "block" : "none";
+    $("group-stats-fields").style.display = cfg.stats ? "block" : "none";
+  }
+
+  function renderForm(){
+    const empty = $("editor-empty");
+    const content = $("editor-content");
+    const card = findCard(currentId);
+
+    if (!card){
+      empty.style.display = "block";
+      content.style.display = "none";
+      return;
+    }
+    empty.style.display = "none";
+    content.style.display = "block";
+
+    $("f-name").value = card.name;
+    $("f-type").value = card.type;
+    $("f-theme").value = card.theme;
+    $("f-location").value = card.location;
+    $("f-phase").value = card.phase;
+    $("f-status").value = card.status;
+    $("f-createdBy").value = card.createdBy || "";
+    $("f-actionCost").value = card.actionCost;
+    $("f-spiteCost").value = card.spiteCost;
+    $("f-body").value = card.body;
+    $("f-mind").value = card.mind;
+    $("f-soul").value = card.soul;
+    $("f-gameText").value = card.gameText;
+    $("f-flavorText").value = card.flavorText;
+    $("f-notes").value = card.notes;
+    $("f-rarity").value = card.rarity || "";
+    $("f-draftLegal").checked = !!card.draftLegal;
+
+    renderTagChips(card);
+    populateTagSuggestionsLocal();
+    renderSubtypeGroup(card);
+    renderEffectsList(card);
+    renderEditorPreview(card);
+
+    const metaEl = $("meta-info");
+    metaEl.textContent = "Aangemaakt: " + formatMetaDate(card.firstCreated) +
+      "  ·  Laatst gewijzigd: " + formatMetaDate(card.lastUpdated) + (card.lastUpdatedBy ? " door " + card.lastUpdatedBy : "");
+
+    const thumb = $("img-preview-thumb");
+    thumb.style.backgroundImage = card.image ? `url(${card.image})` : "none";
+
+    toggleGroups(card.type);
+  }
+
+  function renderEditorPreview(card){
+    const html = buildCardFrameHtml(card);
+    $("strip-preview-mount").innerHTML = html;
+    $("full-preview-mount").innerHTML = html;
+    $("strip-name").textContent = card.name || "Naamloze kaart";
+  }
+
+  $("editor-preview-strip").addEventListener("click", () => openSheet("sheet-preview"));
+
+  function syncFromForm(){
+    const card = findCard(currentId);
+    if (!card) return;
+    card.name = $("f-name").value;
+    card.type = $("f-type").value;
+    card.theme = $("f-theme").value;
+    card.location = $("f-location").value;
+    card.phase = $("f-phase").value;
+    card.status = $("f-status").value;
+    card.createdBy = $("f-createdBy").value;
+    card.actionCost = toNum($("f-actionCost").value, 0);
+    card.spiteCost = toNum($("f-spiteCost").value, 0);
+    const bodyRaw = $("f-body").value, mindRaw = $("f-mind").value, soulRaw = $("f-soul").value;
+    card.body = bodyRaw === "" ? "" : toNum(bodyRaw, "");
+    card.mind = mindRaw === "" ? "" : toNum(mindRaw, "");
+    card.soul = soulRaw === "" ? "" : toNum(soulRaw, "");
+    card.gameText = $("f-gameText").value;
+    card.flavorText = $("f-flavorText").value;
+    card.notes = $("f-notes").value;
+    card.rarity = $("f-rarity").value;
+    card.draftLegal = $("f-draftLegal").checked;
+    card.subtypes = Array.from(document.querySelectorAll('#group-subtypes input[type=checkbox]:checked')).map(cb => cb.value);
+    syncEffectsFromForm(card);
+
+    if (!card.firstCreated) card.firstCreated = Date.now();
+    card.lastUpdated = Date.now();
+    card.lastUpdatedBy = driveUsername || card.lastUpdatedBy || "";
+    $("meta-info").textContent = "Aangemaakt: " + formatMetaDate(card.firstCreated) +
+      "  ·  Laatst gewijzigd: " + formatMetaDate(card.lastUpdated) + (card.lastUpdatedBy ? " door " + card.lastUpdatedBy : "");
+  }
+
+  function renderSubtypeGroup(card){
+    const row = $("group-subtypes-row");
+    const wrap = $("group-subtypes");
+    const allowed = SUBTYPE_LIST_BY_TYPE[card.type] || [];
+    if (allowed.length === 0){ row.style.display = "none"; wrap.innerHTML = ""; return; }
+    row.style.display = "block";
+    wrap.innerHTML = allowed.map(st => {
+      const checked = (card.subtypes || []).includes(st);
+      return `<label class="subtype-chip${checked ? " checked" : ""}"><input type="checkbox" value="${escapeHtml(st)}" ${checked ? "checked" : ""}> ${escapeHtml(st)}</label>`;
+    }).join("");
+    wrap.querySelectorAll(".subtype-chip").forEach(chip => {
+      const cb = chip.querySelector("input");
+      cb.addEventListener("change", () => {
+        chip.classList.toggle("checked", cb.checked);
+        syncFromForm();
+        renderEditorPreview(findCard(currentId));
+        renderCollectionList();
+        autosave();
+      });
+    });
+  }
+
+  function renderEffectsList(card){
+    const wrap = $("effects-list");
+    wrap.innerHTML = "";
+    (card.effects || []).forEach((eff, idx) => wrap.appendChild(buildEffectRowEl(eff, idx)));
+  }
+
+  function buildEffectRowEl(eff, idx){
+    const row = document.createElement("div");
+    row.className = "effect-row";
+    row.dataset.effectId = eff.id;
+    row.innerHTML = `
+      <div class="effect-row-head">
+        <span class="effect-index">Effect ${idx + 1}</span>
+        <button type="button" class="btn-remove-effect">Verwijder</button>
+      </div>
+      <div class="effect-fields">
+        <div class="field">
+          <label>Trigger</label>
+          <select class="ef-trigger">
+            <option value="">— geen —</option>
+            ${TRIGGER_LIST.map(t => `<option value="${t}"${eff.trigger === t ? " selected" : ""}>${t}</option>`).join("")}
+          </select>
+        </div>
+        <div class="field">
+          <label>Actie</label>
+          <select class="ef-action">
+            <option value="">— geen —</option>
+            ${ACTION_LIST.map(a => `<option value="${a}"${eff.action === a ? " selected" : ""}>${a}</option>`).join("")}
+          </select>
+        </div>
+        <div class="field">
+          <label>Target</label>
+          <select class="ef-target">
+            ${TARGET_LIST.map(t => `<option value="${t}"${eff.target === t ? " selected" : ""}>${t}</option>`).join("")}
+          </select>
+        </div>
+        <div class="field">
+          <label>Waarde</label>
+          <input type="number" class="ef-value" value="${eff.value || 0}" step="1" inputmode="numeric">
+        </div>
+      </div>
+      <div class="field">
+        <label>Conditie (vrije tekst)</label>
+        <input type="text" class="ef-condition" value="${escapeHtml(eff.condition || "")}" placeholder="bv. bodyShield == 0">
+      </div>
+      <div class="effect-cost-row">
+        <label>🔥 Extra Spite-kost <input type="number" class="ef-cost-spite" min="0" step="1" value="${(eff.cost && eff.cost.spite) || 0}" inputmode="numeric"></label>
+        <label><input type="checkbox" class="ef-cost-exhaust" ${(eff.cost && eff.cost.exhaustSelf) ? "checked" : ""}> Kost: exhaust deze kaart</label>
+      </div>
+    `;
+    row.querySelector(".btn-remove-effect").addEventListener("click", () => removeEffect(eff.id));
+    return row;
+  }
+
+  function addEffect(){
+    const card = findCard(currentId);
+    if (!card) return;
+    if (!card.effects) card.effects = [];
+    card.effects.push(normalizeEffect({}));
+    renderEffectsList(card);
+    autosave();
+  }
+  function removeEffect(effectId){
+    const card = findCard(currentId);
+    if (!card) return;
+    card.effects = (card.effects || []).filter(e => e.id !== effectId);
+    renderEffectsList(card);
+    autosave();
+  }
+  function syncEffectsFromForm(card){
+    if (!card || !card.effects) return;
+    document.querySelectorAll("#effects-list .effect-row").forEach(row => {
+      const id = row.dataset.effectId;
+      const eff = card.effects.find(e => e.id === id);
+      if (!eff) return;
+      eff.trigger = row.querySelector(".ef-trigger").value;
+      eff.action = row.querySelector(".ef-action").value;
+      eff.target = row.querySelector(".ef-target").value;
+      eff.value = toNum(row.querySelector(".ef-value").value, 0);
+      eff.condition = row.querySelector(".ef-condition").value;
+      eff.cost = {
+        spite: toNum(row.querySelector(".ef-cost-spite").value, 0),
+        exhaustSelf: row.querySelector(".ef-cost-exhaust").checked
+      };
+    });
+  }
+
+  $("card-form").addEventListener("input", (e) => {
+    syncFromForm();
+    if (e.target && e.target.id === "f-type"){
+      toggleGroups($("f-type").value);
+      const card = findCard(currentId);
+      if (card){ card.subtypes = []; renderSubtypeGroup(card); }
+    }
+    renderEditorPreview(findCard(currentId));
+    renderCollectionList();
+    autosave();
+  });
+
+  // Tags
+  function allKnownTagsLocal(){
+    const set = new Set();
+    collection.forEach(c => (c.tags || []).forEach(t => set.add(t)));
+    return Array.from(set).sort((a,b) => a.localeCompare(b));
+  }
+  function populateTagSuggestionsLocal(){
+    $("tag-suggestions").innerHTML = allKnownTagsLocal().map(t => `<option value="${escapeHtml(t)}">`).join("");
+  }
+  function renderTagChips(card){
+    const wrap = $("tag-chips");
+    wrap.innerHTML = "";
+    (card.tags || []).forEach(tag => {
+      const chip = document.createElement("span");
+      chip.className = "tag-chip";
+      chip.innerHTML = `${escapeHtml(tag)} <button type="button">×</button>`;
+      chip.querySelector("button").addEventListener("click", () => removeTagFromCurrentCard(tag));
+      wrap.appendChild(chip);
+    });
+  }
+  function addTagToCurrentCard(rawTag){
+    const card = findCard(currentId);
+    if (!card) return;
+    const tag = rawTag.trim();
+    if (!tag) return;
+    if (!card.tags) card.tags = [];
+    if (!card.tags.some(t => t.toLowerCase() === tag.toLowerCase())) card.tags.push(tag);
+    renderTagChips(card);
+    populateTagSuggestionsLocal();
+    autosave();
+  }
+  function removeTagFromCurrentCard(tag){
+    const card = findCard(currentId);
+    if (!card) return;
+    card.tags = (card.tags || []).filter(t => t !== tag);
+    renderTagChips(card);
+    populateTagSuggestionsLocal();
+    autosave();
+  }
+  const tagInput = $("f-tag-input");
+  tagInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter"){ e.preventDefault(); addTagToCurrentCard(tagInput.value); tagInput.value = ""; }
+  });
+  tagInput.addEventListener("change", () => {
+    if (tagInput.value.trim()){ addTagToCurrentCard(tagInput.value); tagInput.value = ""; }
+  });
+
+  // Image
+  $("f-image").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const card = findCard(currentId);
+    if (!card) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      card.image = reader.result;
+      $("img-preview-thumb").style.backgroundImage = `url(${card.image})`;
+      renderEditorPreview(card);
+      autosave();
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  });
+  $("btn-remove-image").addEventListener("click", () => {
+    const card = findCard(currentId);
+    if (!card) return;
+    card.image = "";
+    $("img-preview-thumb").style.backgroundImage = "none";
+    renderEditorPreview(card);
+    autosave();
+  });
+
+  $("btn-add-effect").addEventListener("click", addEffect);
+  $("btn-new-from-empty").addEventListener("click", newCard);
+  $("btn-new-from-editor").addEventListener("click", newCard);
+  $("btn-duplicate-current").addEventListener("click", () => { if (currentId) duplicateCard(currentId); });
+  $("btn-delete-current").addEventListener("click", () => { if (currentId) deleteCard(currentId); });
+
+  function renderAll(){
+    renderCollectionList();
+    renderForm();
+    renderDeckPanel();
+  }
+
+  // ---------- Decks ----------
+  function loadDecks(){
+    try { const saved = localStorage.getItem(DECKS_STORAGE_KEY); if (saved) decks = JSON.parse(saved); } catch (e){ decks = []; }
+    if (!Array.isArray(decks)) decks = [];
+    try { activeDeckId = localStorage.getItem(ACTIVE_DECK_KEY) || null; } catch (e){ activeDeckId = null; }
+    if (!findDeck(activeDeckId)) activeDeckId = decks[0] ? decks[0].id : null;
+  }
+  function saveDecks(){ try { localStorage.setItem(DECKS_STORAGE_KEY, JSON.stringify(decks)); } catch (e){} }
+  function saveActiveDeckId(){ try { localStorage.setItem(ACTIVE_DECK_KEY, activeDeckId || ""); } catch (e){} }
+  function deckCardCount(deck){ return Object.values(deck.qty || {}).reduce((a,b) => a + (b||0), 0); }
+
+  function addCardToActiveDeck(cardId){
+    if (!activeDeckId || !findDeck(activeDeckId)){
+      const deck = { id: uid(), name: "Nieuw deck", qty: {} };
+      decks.push(deck);
+      activeDeckId = deck.id;
+      saveActiveDeckId();
+    }
+    const deck = findDeck(activeDeckId);
+    deck.qty[cardId] = (deck.qty[cardId] || 0) + 1;
+    saveDecks();
+    renderDeckPanel();
+    const card = findCard(cardId);
+    toast(`+1 ${card ? (card.name || "kaart") : "kaart"} → ${deck.name || "deck"}`);
+  }
+
+  function newDeck(){
+    const deck = { id: uid(), name: "Nieuw deck", qty: {} };
+    decks.push(deck);
+    activeDeckId = deck.id;
+    saveDecks(); saveActiveDeckId();
+    renderDeckPanel();
+    showView("deck");
+    const nameInput = $("deck-panel-name");
+    setTimeout(() => { nameInput.focus(); nameInput.select(); }, 50);
+  }
+  function duplicateDeck(id){
+    const deck = findDeck(id);
+    if (!deck) return;
+    const copy = { id: uid(), name: deck.name + " (kopie)", qty: Object.assign({}, deck.qty) };
+    decks.push(copy);
+    activeDeckId = copy.id;
+    saveDecks(); saveActiveDeckId();
+    renderDeckPanel();
+  }
+  function deleteDeck(id){
+    const deck = findDeck(id);
+    if (!deck) return;
+    if (!confirm(`Deck "${deck.name}" verwijderen?`)) return;
+    decks = decks.filter(d => d.id !== id);
+    activeDeckId = decks[0] ? decks[0].id : null;
+    saveDecks(); saveActiveDeckId();
+    renderDeckPanel();
+  }
+  function exportDeck(deck){
+    const cards = Object.entries(deck.qty || {}).filter(([,qty]) => qty > 0).map(([cardId, qty]) => {
+      const card = findCard(cardId);
+      return { id: cardId, name: card ? card.name : null, qty };
+    });
+    const payload = { name: deck.name, qty: deck.qty || {}, cards };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = (deck.name || "deck").replace(/[^a-z0-9\-_]/gi,"_") + ".json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  function importDeckFromFile(file){
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      let data;
+      try { data = JSON.parse(ev.target.result); } catch (e){ alert("Kon dit bestand niet lezen."); return; }
+      const qty = (data && typeof data.qty === "object" && data.qty) ? data.qty : {};
+      const cleanQty = {};
+      Object.entries(qty).forEach(([cardId, n]) => { const num = Math.max(0, parseInt(n) || 0); if (num > 0) cleanQty[cardId] = num; });
+      const deck = { id: uid(), name: (data && typeof data.name === "string" && data.name.trim()) ? data.name.trim() : "Geïmporteerd deck", qty: cleanQty };
+      decks.push(deck);
+      activeDeckId = deck.id;
+      saveDecks(); saveActiveDeckId();
+      renderDeckPanel();
+    };
+    reader.readAsText(file);
+  }
+
+  function renderDeckPanel(){
+    if (!findDeck(activeDeckId)) activeDeckId = decks[0] ? decks[0].id : null;
+    const selectEl = $("deck-select");
+    const emptyEl = $("deck-empty");
+    const contentEl = $("deck-content");
+
+    if (decks.length === 0){
+      selectEl.innerHTML = "";
+      emptyEl.style.display = "block";
+      contentEl.style.display = "none";
+      return;
+    }
+    emptyEl.style.display = "none";
+    contentEl.style.display = "block";
+
+    selectEl.innerHTML = decks.map(d => `<option value="${d.id}">${escapeHtml(d.name || "(naamloos deck)")} — ${deckCardCount(d)}</option>`).join("");
+    selectEl.value = activeDeckId;
+
+    const deck = findDeck(activeDeckId);
+    $("deck-panel-name").value = deck.name;
+    renderDeckStats(deck);
+    renderDeckList(deck);
+  }
+
+  function renderDeckStats(deck){
+    const wrap = $("deck-stats");
+    const total = deckCardCount(deck);
+    if (total === 0){ wrap.innerHTML = ""; return; }
+    const typeCounts = {};
+    TYPE_LIST.forEach(t => typeCounts[t] = 0);
+    let costSum = 0, costCount = 0, spiteSum = 0, spiteCount = 0;
+    Object.entries(deck.qty || {}).forEach(([cardId, qty]) => {
+      if (!qty) return;
+      const card = findCard(cardId);
+      if (!card) return;
+      if (typeCounts[card.type] !== undefined) typeCounts[card.type] += qty;
+      const cfg = TYPE_CONFIG[card.type];
+      if (cfg && cfg.cost){ costSum += (card.actionCost||0)*qty; costCount += qty; spiteSum += (card.spiteCost||0)*qty; spiteCount += qty; }
+    });
+    const avgCost = costCount ? (costSum/costCount).toFixed(1) : "—";
+    const avgSpite = spiteCount ? (spiteSum/spiteCount).toFixed(1) : "—";
+    wrap.innerHTML = buildStatPillsHtml(total, typeCounts, avgCost, avgSpite);
+  }
+
+  function renderDeckList(deck){
+    const wrap = $("deck-list");
+    const emptyEl = $("deck-list-empty");
+    const entries = Object.entries(deck.qty || {}).filter(([,q]) => q > 0);
+    wrap.innerHTML = "";
+    emptyEl.style.display = entries.length === 0 ? "block" : "none";
+    const items = entries.map(([cardId, qty]) => ({ cardId, qty, card: findCard(cardId) }))
+      .sort((a,b) => (a.card ? a.card.name||"" : "").localeCompare(b.card ? b.card.name||"" : ""));
+
+    items.forEach(it => {
+      const row = document.createElement("div");
+      row.className = "deck-card-row";
+      const nameEl = document.createElement("div");
+      nameEl.className = "dc-name";
+      nameEl.textContent = it.card ? (it.card.name || "Naamloze kaart") : "Verwijderde kaart";
+      nameEl.addEventListener("click", () => { if (it.card) openDetail(it.card.id); });
+      const ctrl = document.createElement("div");
+      ctrl.className = "dc-qty-ctrl";
+      const minus = document.createElement("button"); minus.type="button"; minus.textContent="−";
+      const qtySpan = document.createElement("span"); qtySpan.textContent = "×" + it.qty;
+      const plus = document.createElement("button"); plus.type="button"; plus.textContent="+";
+      minus.addEventListener("click", () => {
+        const cur = deck.qty[it.cardId] || 0;
+        const v = cur - 1;
+        if (v <= 0) delete deck.qty[it.cardId]; else deck.qty[it.cardId] = v;
+        saveDecks(); renderDeckPanel();
+      });
+      plus.addEventListener("click", () => {
+        deck.qty[it.cardId] = (deck.qty[it.cardId] || 0) + 1;
+        saveDecks(); renderDeckPanel();
+      });
+      ctrl.appendChild(minus); ctrl.appendChild(qtySpan); ctrl.appendChild(plus);
+      row.appendChild(nameEl); row.appendChild(ctrl);
+      wrap.appendChild(row);
+    });
+  }
+
+  $("btn-new-deck").addEventListener("click", newDeck);
+  $("btn-duplicate-deck").addEventListener("click", () => { if (activeDeckId) duplicateDeck(activeDeckId); });
+  $("btn-delete-deck").addEventListener("click", () => { if (activeDeckId) deleteDeck(activeDeckId); });
+  $("deck-select").addEventListener("change", (e) => { activeDeckId = e.target.value; saveActiveDeckId(); renderDeckPanel(); });
+  $("deck-panel-name").addEventListener("input", () => {
+    const deck = findDeck(activeDeckId);
+    if (!deck) return;
+    deck.name = $("deck-panel-name").value;
+    saveDecks();
+    const opt = document.querySelector(`#deck-select option[value="${activeDeckId}"]`);
+    if (opt) opt.textContent = `${deck.name || "(naamloos deck)"} — ${deckCardCount(deck)}`;
+  });
+  $("btn-export-deck").addEventListener("click", () => { const deck = findDeck(activeDeckId); if (deck) exportDeck(deck); });
+  $("deck-import-file").addEventListener("change", (e) => { const file = e.target.files[0]; if (file) importDeckFromFile(file); e.target.value = ""; });
+
+  // ---------- Autosave (lokale browser) ----------
+  function autosave(){
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ collection, currentId })); } catch (e){}
+  }
+  function checkAutosave(){
+    let saved;
+    try { saved = localStorage.getItem(STORAGE_KEY); } catch (e){ return; }
+    if (!saved) return;
+    $("autosave-banner").style.display = "flex";
+    $("btn-restore").addEventListener("click", () => {
+      try {
+        const data = JSON.parse(saved);
+        collection = (data.collection || []).map(normalizeCard);
+        currentId = data.currentId && findCard(data.currentId) ? data.currentId : (collection[0] ? collection[0].id : null);
+        renderAll();
+      } catch (e){ alert("Kon vorige sessie niet herstellen."); }
+      $("autosave-banner").style.display = "none";
+    }, { once:true });
+    $("btn-dismiss-autosave").addEventListener("click", () => { $("autosave-banner").style.display = "none"; }, { once:true });
+  }
+
+  // ---------- Drive sync ----------
+  function setSyncStatus(text){
+    $("sync-status-line").textContent = text;
+    $("drive-status-mini").textContent = "";
+  }
+
+  function applyUnknownFields(data){
+    driveUnknownFields = {};
+    Object.keys(data).forEach(key => {
+      if (!["collection","currentId","lastEditedBy","lastEditedAt","error"].includes(key)) driveUnknownFields[key] = data[key];
+    });
+  }
+
+  async function driveLoad(){
+    if (collection.length > 0 && !confirm("Dit vervangt je huidige kaarten door de laatste versie uit Drive.\n\nDoorgaan?")) return;
+    setSyncStatus("Bezig met laden vanuit Drive…");
+    try {
+      const data = await DriveAuth.fetchFullSync(drivePassword);
+      collection = Array.isArray(data.collection) ? data.collection.map(normalizeCard) : [];
+      currentId = data.currentId && collection.find(c => c.id === data.currentId) ? data.currentId : (collection[0] ? collection[0].id : null);
+      applyUnknownFields(data);
+      driveLastEditedBy = data.lastEditedBy || "";
+      driveLastEditedAt = data.lastEditedAt || null;
+      driveBaselineEditedAt = driveLastEditedAt;
+      renderAll();
+      autosave();
+      DriveAuth.saveSession(driveUsername, drivePassword, data);
+      setSyncStatus("✓ Geladen — " + DriveAuth.formatLastEdit(driveLastEditedBy, driveLastEditedAt));
+      toast("Geladen vanuit Drive");
+    } catch (err){ setSyncStatus("⚠ Kon niet verbinden met Drive"); }
+  }
+
+  async function driveMerge(){
+    setSyncStatus("Bezig met ophalen van cloud-versie…");
+    let cloudData;
+    try { cloudData = await DriveAuth.fetchFullSync(drivePassword); }
+    catch (err){ setSyncStatus("⚠ Kon niet verbinden met Drive"); return; }
+
+    const cloudCards = Array.isArray(cloudData.collection) ? cloudData.collection.map(normalizeCard) : [];
+    const mergedById = new Map(cloudCards.map(c => [c.id, c]));
+    let addedCount = 0, unchangedCount = 0, mineWonCount = 0, cloudWonCount = 0;
+    for (const localCard of collection){
+      const cloudVersion = mergedById.get(localCard.id);
+      if (!cloudVersion){ mergedById.set(localCard.id, localCard); addedCount++; continue; }
+      const same = JSON.stringify(cloudVersion) === JSON.stringify(localCard);
+      if (same){ unchangedCount++; continue; }
+      const keepMine = confirm(`Kaart "${localCard.name || "(naamloos)"}" verschilt tussen jouw versie en de cloud-versie.\n\nOK = jouw versie behouden.\nAnnuleren = cloud-versie behouden.`);
+      if (keepMine){ mergedById.set(localCard.id, localCard); mineWonCount++; }
+      else { mergedById.set(localCard.id, cloudVersion); cloudWonCount++; }
+    }
+    const merged = Array.from(mergedById.values());
+    applyUnknownFields(cloudData);
+
+    setSyncStatus("Bezig met wegschrijven van samengevoegde set…");
+    const payload = Object.assign({}, driveUnknownFields, {
+      collection: merged,
+      currentId: (currentId && merged.find(c => c.id === currentId)) ? currentId : (merged[0] ? merged[0].id : null),
+      lastEditedBy: driveUsername || "(naamloos)",
+      lastEditedAt: Date.now()
+    });
+    try {
+      const res = await fetch(DriveAuth.driveUrl(drivePassword), { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify(payload) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.error){ setSyncStatus("⚠ Wegschrijven mislukt" + (data.error ? ": " + data.error : "")); return; }
+      collection = merged;
+      currentId = payload.currentId;
+      driveLastEditedBy = payload.lastEditedBy;
+      driveLastEditedAt = payload.lastEditedAt;
+      driveBaselineEditedAt = payload.lastEditedAt;
+      renderAll();
+      autosave();
+      DriveAuth.saveSession(driveUsername, drivePassword, Object.assign({}, payload));
+      const summary = `${addedCount} nieuw, ${unchangedCount} ongewijzigd` + (mineWonCount||cloudWonCount ? `, ${mineWonCount}× jouw versie, ${cloudWonCount}× cloud-versie` : "");
+      setSyncStatus("✓ Samengevoegd (" + summary + ")");
+      toast("Samengevoegd met Drive");
+    } catch (err){ setSyncStatus("⚠ Kon niet verbinden met Drive"); }
+  }
+
+  async function driveWrite(){
+    setSyncStatus("Bezig met controleren op wijzigingen…");
+    try {
+      const checkData = await DriveAuth.fetchFullSync(drivePassword);
+      const remoteEditedAt = checkData.lastEditedAt || null;
+      const remoteEditedBy = checkData.lastEditedBy || "iemand";
+      const isConflict = driveBaselineEditedAt !== null && remoteEditedAt !== driveBaselineEditedAt;
+      if (isConflict){
+        const when = remoteEditedAt ? new Date(remoteEditedAt).toLocaleString("nl-BE") : "een onbekend moment";
+        const proceed = confirm(remoteEditedBy + " heeft op " + when + " al iets weggeschreven sinds jij laatst hebt geladen.\n\nOK = toch overschrijven.\nAnnuleren = wegschrijven annuleren (eerst laden aangeraden).");
+        if (!proceed){ setSyncStatus("Wegschrijven geannuleerd — eerst laden aangeraden."); return; }
+        applyUnknownFields(checkData);
+      }
+    } catch (err){
+      setSyncStatus("⚠ Kon niet verbinden met Drive");
+      if (!confirm("Kon geen verbinding maken met Drive om op conflicten te controleren.\n\nToch proberen wegschrijven?")) return;
+    }
+    setSyncStatus("Bezig met wegschrijven naar Drive…");
+    const payload = Object.assign({}, driveUnknownFields, { collection, currentId, lastEditedBy: driveUsername || "(naamloos)", lastEditedAt: Date.now() });
+    try {
+      const res = await fetch(DriveAuth.driveUrl(drivePassword), { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify(payload) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.error){ setSyncStatus("⚠ Wegschrijven mislukt" + (data.error ? ": " + data.error : "")); return; }
+      driveLastEditedBy = payload.lastEditedBy;
+      driveLastEditedAt = payload.lastEditedAt;
+      driveBaselineEditedAt = payload.lastEditedAt;
+      DriveAuth.saveSession(driveUsername, drivePassword, Object.assign({}, payload));
+      setSyncStatus("✓ Weggeschreven door " + driveLastEditedBy);
+      toast("Opgeslagen naar Drive");
+    } catch (err){ setSyncStatus("⚠ Kon niet verbinden met Drive"); }
+  }
+
+  function exportCollectionLocal(){
+    const blob = new Blob([JSON.stringify(collection, null, 2)], { type:"application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "wizards-cards.json";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast("Lokaal .json opgeslagen");
+  }
+
+  function readFileAsText(file){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error || new Error("Kon bestand niet lezen"));
+      reader.readAsText(file);
+    });
+  }
+  function extractCardsFromJson(parsed){
+    if (Array.isArray(parsed)) return parsed;
+    if (parsed && typeof parsed === "object") return [parsed];
+    return null;
+  }
+  async function loadFromFilesLocal(fileList){
+    const matched = Array.from(fileList);
+    if (!matched.length) return;
+    let mode = "merge";
+    if (collection.length > 0){
+      const replace = confirm(`Je hebt al ${collection.length} kaart(en).\n\nOK = VERVANGEN door geladen bestand(en).\nAnnuleren = SAMENVOEGEN met huidige set.`);
+      mode = replace ? "replace" : "merge";
+    }
+    let incomingCards = [];
+    const failedFiles = [];
+    for (const file of matched){
+      try {
+        const text = await readFileAsText(file);
+        const parsed = JSON.parse(text);
+        const cards = extractCardsFromJson(parsed);
+        if (!cards){ failedFiles.push(file.name + " (onverwacht formaat)"); continue; }
+        incomingCards = incomingCards.concat(cards.map(normalizeCard));
+      } catch (err){ failedFiles.push(file.name + " (" + err.message + ")"); }
+    }
+    let reassignedCount = 0;
+    if (mode === "replace"){
+      const seen = new Set();
+      incomingCards.forEach(c => { if (seen.has(c.id)){ c.id = uid(); reassignedCount++; } seen.add(c.id); });
+      collection = incomingCards;
+    } else {
+      const existingIds = new Set(collection.map(c => c.id));
+      incomingCards.forEach(c => { if (existingIds.has(c.id)){ c.id = uid(); reassignedCount++; } existingIds.add(c.id); });
+      collection = collection.concat(incomingCards);
+    }
+    currentId = collection.length ? collection[0].id : null;
+    renderAll();
+    autosave();
+    const parts = [`${incomingCards.length} kaart(en) geladen.`];
+    if (reassignedCount) parts.push(`${reassignedCount} kreeg(en) een nieuw id (dubbele id).`);
+    if (failedFiles.length) parts.push(`Niet gelukt: ${failedFiles.join(", ")}.`);
+    toast(parts[0]);
+    if (reassignedCount || failedFiles.length) alert(parts.join("\n"));
+  }
+
+  $("btn-open-sync").addEventListener("click", () => {
+    setSyncStatus(driveLastEditedAt ? "✓ " + DriveAuth.formatLastEdit(driveLastEditedBy, driveLastEditedAt) : "Nog niet gesynchroniseerd deze sessie.");
+    openSheet("sheet-sync");
+  });
+  $("btn-drive-save").addEventListener("click", driveWrite);
+  $("btn-drive-load").addEventListener("click", driveLoad);
+  $("btn-drive-merge").addEventListener("click", driveMerge);
+  $("btn-local-save").addEventListener("click", exportCollectionLocal);
+  $("local-load-file").addEventListener("change", (e) => { if (e.target.files && e.target.files.length) loadFromFilesLocal(e.target.files); e.target.value = ""; });
+  $("btn-logout").addEventListener("click", () => {
+    if (!confirm("Uitloggen? Lokale wijzigingen die nog niet zijn opgeslagen naar Drive blijven wel bewaard in deze browser.")) return;
+    DriveAuth.clearSession();
+    location.reload();
+  });
+
+  function updateDriveUserLabelLocal(){
+    const el = $("drive-user-label");
+    if (!el) return;
+    if (window.HatAvatar) HatAvatar.renderBubble(el, driveUsername, { password: drivePassword });
+    else el.innerHTML = driveUsername ? "<b>" + escapeHtml(driveUsername) + "</b>" : "";
+  }
+
+  DriveAuth.initLoginOverlay({
+    appTitle: "Wizards — Mobile",
+    onSuccess: function(data, session){
+      driveUsername = session.username;
+      drivePassword = session.password;
+      collection = Array.isArray(data.collection) ? data.collection.map(normalizeCard) : [];
+      currentId = data.currentId && collection.find(c => c.id === data.currentId) ? data.currentId : null;
+      applyUnknownFields(data);
+      driveLastEditedBy = data.lastEditedBy || "";
+      driveLastEditedAt = data.lastEditedAt || null;
+      driveBaselineEditedAt = driveLastEditedAt;
+      loadDecks();
+      $("app").style.display = "block";
+      updateDriveUserLabelLocal();
+      renderAll();
+      autosave();
+      checkAutosave();
+      showView("collectie");
+    }
+  });
+
+  // ---------- PWA: service worker voor offline gebruik (bv. zonder bereik op
+  // de trein) — werkt enkel als dit bestand over https/localhost gehost wordt,
+  // browsers registreren geen service workers op file://.
+  if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")){
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw-mobile.js").catch(() => { /* stil negeren, app werkt ook zonder */ });
+    });
+  }
+})();
+</script>
+</body>
+</html>
