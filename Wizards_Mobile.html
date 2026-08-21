@@ -98,11 +98,16 @@
   }
   #topbar .app-title{ font-family: var(--font-display); font-size:16.5px; color: var(--gold-soft); flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   #topbar .icon-btn{
+    position:relative;
     width:var(--tap); height:var(--tap); border-radius:50%; flex-shrink:0;
     background: var(--panel-2); border:1px solid var(--border); color: var(--ink-light);
     display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer;
   }
   #topbar .icon-btn:active{ border-color: var(--gold); }
+  #sync-pending-dot{
+    position:absolute; top:3px; right:3px; width:10px; height:10px; border-radius:50%;
+    background: var(--gold); border:1.5px solid var(--bg); display:none;
+  }
   #drive-user-label{ display:flex; align-items:center; flex-shrink:0; }
   #drive-status-mini{ font-size:10.5px; color: var(--ink-dim); position:absolute; top:2px; right:14px; }
 
@@ -206,6 +211,12 @@
     display:flex; align-items:center; gap:12px; background: var(--panel);
     border:1px solid var(--border); border-radius:10px; padding:10px; margin-bottom:14px; cursor:pointer;
   }
+  #editor-preview-strip .strip-close{
+    width:34px; height:34px; flex-shrink:0; border-radius:50%; background: var(--panel-2);
+    border:1px solid var(--border); color: var(--ink-light); font-size:16px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  #editor-preview-strip .strip-close:active{ border-color: var(--gold); }
   #editor-preview-strip .strip-thumb{ width:52px; height:73px; border-radius:5px; overflow:hidden; flex-shrink:0; background: var(--panel-2); display:flex; align-items:center; justify-content:center; }
   #editor-preview-strip .strip-thumb .card-frame{ transform: scale(0.148); transform-origin: top left; width:352px; }
   #editor-preview-strip .strip-text{ flex:1; min-width:0; }
@@ -249,7 +260,7 @@
     font-size:16px; padding:10px 2px; min-width:0; -moz-appearance:textfield;
   }
   .stepper input::-webkit-outer-spin-button, .stepper input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
-  .stepper-row{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+  .stepper-row{ display:grid; grid-template-columns:1fr; gap:10px; margin-bottom:12px; }
   .stepper-row:last-child{ margin-bottom:0; }
   .stepper-label{ font-size:11px; color: var(--ink-dim); display:flex; align-items:center; gap:5px; margin-bottom:6px; }
 
@@ -391,7 +402,7 @@
 <div id="app" style="display:none;">
 
   <div id="topbar">
-    <button class="icon-btn" id="btn-open-sync" title="Synchroniseren">🔄</button>
+    <button class="icon-btn" id="btn-open-sync" title="Synchroniseren (laden én opslaan)">🔄<span id="sync-pending-dot"></span></button>
     <div class="app-title">Wizards</div>
     <span id="drive-user-label"></span>
   </div>
@@ -424,6 +435,7 @@
 
       <div id="editor-content" style="display:none;">
         <div id="editor-preview-strip">
+          <button type="button" class="strip-close" id="btn-editor-close" title="Terug naar vorig scherm">✕</button>
           <div class="strip-thumb"><div id="strip-preview-mount"></div></div>
           <div class="strip-text">
             <div class="strip-name" id="strip-name">—</div>
@@ -788,6 +800,9 @@
   let activeDeckId = null;
   let detailCardId = null;
 
+  let editorReturnView = null;
+  let hasUnsyncedChanges = false;
+
   let driveUsername = "";
   let drivePassword = "";
   let driveLastEditedBy = "";
@@ -840,8 +855,25 @@
     document.querySelectorAll("#bottom-nav .nav-btn").forEach(b => b.classList.toggle("active", b.dataset.view === view));
     window.scrollTo(0, 0);
   }
+  function activeViewKey(){
+    const el = document.querySelector(".view.active");
+    return el ? el.id.replace("view-", "") : "collectie";
+  }
   document.querySelectorAll("#bottom-nav .nav-btn").forEach(btn => {
-    btn.addEventListener("click", () => showView(btn.dataset.view));
+    btn.addEventListener("click", () => { editorReturnView = null; showView(btn.dataset.view); });
+  });
+
+  // Verlaat de Editor-tab via het kruisje: keert terug naar het scherm van
+  // waaruit "Bewerken" werd geopend (meestal Collectie of Deck), i.p.v. de
+  // gebruiker altijd op de Editor-tab te laten staan.
+  function exitEditor(){
+    const target = editorReturnView || "collectie";
+    editorReturnView = null;
+    showView(target);
+  }
+  $("btn-editor-close").addEventListener("click", (e) => {
+    e.stopPropagation();
+    exitEditor();
   });
 
   // ---------- New / duplicate / delete card ----------
@@ -969,6 +1001,7 @@
   $("btn-detail-edit").addEventListener("click", () => {
     if (!detailCardId) return;
     currentId = detailCardId;
+    editorReturnView = activeViewKey();
     closeSheet();
     renderForm();
     showView("editor");
@@ -1487,8 +1520,22 @@
   $("deck-import-file").addEventListener("change", (e) => { const file = e.target.files[0]; if (file) importDeckFromFile(file); e.target.value = ""; });
 
   // ---------- Autosave (lokale browser) ----------
+  // Slaat de collectie lokaal op EN markeert dat er wijzigingen zijn die nog
+  // niet naar Drive zijn weggeschreven (zichtbaar als bolletje op de
+  // 🔄-knop) — lokaal opslaan is dus niet hetzelfde als synchroniseren met
+  // Drive, en dat onderscheid moet zichtbaar blijven voor de gebruiker.
   function autosave(){
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ collection, currentId })); } catch (e){}
+    hasUnsyncedChanges = true;
+    updateSyncBadge();
+  }
+  function updateSyncBadge(){
+    const dot = $("sync-pending-dot");
+    if (dot) dot.style.display = hasUnsyncedChanges ? "block" : "none";
+  }
+  function markSynced(){
+    hasUnsyncedChanges = false;
+    updateSyncBadge();
   }
   function checkAutosave(){
     let saved;
@@ -1501,6 +1548,8 @@
         collection = (data.collection || []).map(normalizeCard);
         currentId = data.currentId && findCard(data.currentId) ? data.currentId : (collection[0] ? collection[0].id : null);
         renderAll();
+        hasUnsyncedChanges = true;
+        updateSyncBadge();
       } catch (e){ alert("Kon vorige sessie niet herstellen."); }
       $("autosave-banner").style.display = "none";
     }, { once:true });
@@ -1533,6 +1582,7 @@
       driveBaselineEditedAt = driveLastEditedAt;
       renderAll();
       autosave();
+      markSynced();
       DriveAuth.saveSession(driveUsername, drivePassword, data);
       setSyncStatus("✓ Geladen — " + DriveAuth.formatLastEdit(driveLastEditedBy, driveLastEditedAt));
       toast("Geladen vanuit Drive");
@@ -1578,6 +1628,7 @@
       driveBaselineEditedAt = payload.lastEditedAt;
       renderAll();
       autosave();
+      markSynced();
       DriveAuth.saveSession(driveUsername, drivePassword, Object.assign({}, payload));
       const summary = `${addedCount} nieuw, ${unchangedCount} ongewijzigd` + (mineWonCount||cloudWonCount ? `, ${mineWonCount}× jouw versie, ${cloudWonCount}× cloud-versie` : "");
       setSyncStatus("✓ Samengevoegd (" + summary + ")");
@@ -1611,6 +1662,7 @@
       driveLastEditedBy = payload.lastEditedBy;
       driveLastEditedAt = payload.lastEditedAt;
       driveBaselineEditedAt = payload.lastEditedAt;
+      markSynced();
       DriveAuth.saveSession(driveUsername, drivePassword, Object.assign({}, payload));
       setSyncStatus("✓ Weggeschreven door " + driveLastEditedBy);
       toast("Opgeslagen naar Drive");
@@ -1680,7 +1732,11 @@
   }
 
   $("btn-open-sync").addEventListener("click", () => {
-    setSyncStatus(driveLastEditedAt ? "✓ " + DriveAuth.formatLastEdit(driveLastEditedBy, driveLastEditedAt) : "Nog niet gesynchroniseerd deze sessie.");
+    if (hasUnsyncedChanges){
+      setSyncStatus("Je hebt lokale wijzigingen die nog niet naar Drive zijn weggeschreven — tik op \"Opslaan naar Drive\".");
+    } else {
+      setSyncStatus(driveLastEditedAt ? "✓ " + DriveAuth.formatLastEdit(driveLastEditedBy, driveLastEditedAt) : "Nog niet gesynchroniseerd deze sessie.");
+    }
     openSheet("sheet-sync");
   });
   $("btn-drive-save").addEventListener("click", driveWrite);
@@ -1717,6 +1773,7 @@
       updateDriveUserLabelLocal();
       renderAll();
       autosave();
+      markSynced();
       checkAutosave();
       showView("collectie");
     }
